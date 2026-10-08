@@ -12,6 +12,8 @@ export const aim = {
   yaw: Math.PI,
   /** `[x, y, z]` of what is being shot at, or null to shoot straight ahead. */
   target: null,
+  /** The local gun's muzzle (an Object3D at the barrel tip), set by GunModel; shots start there. */
+  muzzle: null,
 }
 
 /** Sets `aim.target` to a copy of `point`, reusing the array it already has. */

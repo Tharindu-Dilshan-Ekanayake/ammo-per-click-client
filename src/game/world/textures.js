@@ -673,9 +673,9 @@ export function skyTexture() {
   return cached('sky', () => {
     const [canvas, ctx] = makeCanvas(4, 256)
     const grad = ctx.createLinearGradient(0, 0, 0, 256)
-    grad.addColorStop(0, '#2a74e0')
-    grad.addColorStop(0.3, '#5aa6f2')
-    grad.addColorStop(0.49, '#bfe4ff')
+    grad.addColorStop(0, '#1264e8')
+    grad.addColorStop(0.3, '#2879f0')
+    grad.addColorStop(0.49, '#a6d6ff')
     grad.addColorStop(1, '#e6f5ff')
     ctx.fillStyle = grad
     ctx.fillRect(0, 0, 4, 256)

@@ -2,6 +2,7 @@ import { useFrame } from '@react-three/fiber'
 import { useRef } from 'react'
 import { AdditiveBlending, BoxGeometry, CylinderGeometry } from 'three'
 
+import { aim } from './aim'
 import { geometry, merge } from './world/geometry'
 import { radialGlowTexture } from './world/textures'
 
@@ -134,13 +135,15 @@ const partsOf = (gun) => geometry(`gun-${gun.type}`, shapeOf(gun).parts)
  * points down +Z, so holders only need to rotate it.
  *
  * @param {{ gun: import('./guns').GUNS[number], minGlow?: number,
- *           flashRef?: React.MutableRefObject<number> }} props
+ *           flashRef?: React.MutableRefObject<number>, local?: boolean }} props
  *   `minGlow` lights up even a plain gun's trim a little (the shop display uses it).
  *   `flashRef`, when given, is read every frame (not passed as a prop, so a shot
  *   doesn't re-render the gun 60 times a second): its `.current` (0-1) flares the
  *   trim and shows the muzzle flash, fading back as the shot settles.
+ *   `local` marks the player's own held gun: its barrel tip is published as
+ *   `aim.muzzle`, which is where the shot effects start.
  */
-export function GunModel({ gun, minGlow = 0, flashRef }) {
+export function GunModel({ gun, minGlow = 0, flashRef, local = false }) {
   const baseGlow = Math.max(gun.glow ?? 0, minGlow)
   const parts = partsOf(gun)
   const tip = shapeOf(gun).tip
@@ -181,6 +184,15 @@ export function GunModel({ gun, minGlow = 0, flashRef }) {
           roughness={0.3}
         />
       </mesh>
+      {local && (
+        <object3D
+          position={[0, 0.12, tip]}
+          ref={(el) => {
+            if (el) aim.muzzle = el
+            else aim.muzzle = null
+          }}
+        />
+      )}
       {flashRef && (
         <sprite ref={muzzle} position={[0, 0.12, tip + 0.12]} visible={false}>
           <spriteMaterial

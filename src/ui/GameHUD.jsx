@@ -7,7 +7,6 @@ import { formatBonus, formatNumber } from '../game/format'
 import { AUTO_WINS_S, powerMultiplier, useGame, winsMultiplier } from '../game/gameStore'
 import {
   activeBoost,
-  AUTO_CLICKERS,
   BOOSTS,
   levelAmmo,
   levelFor,
@@ -21,7 +20,7 @@ import { ControlsButton, ControlsPanel } from './Controls'
 import { PetsButton, PetsPanel } from './PetsPanel'
 import { RebirthButton, RebirthPanel } from './RebirthPanel'
 import { AutoWinsButton, PromoStack, ShopButton, ShopPanel } from './ShopPanel'
-import { CHIP, OUTLINE, outlined, SOFT } from './textStyle'
+import { OUTLINE, outlined, SOFT } from './textStyle'
 import { HUD_STRIP_H, reportStripHeight, useTouchScale } from './touchLayout'
 
 const ICON_SHADOW = { filter: 'drop-shadow(0 3px 0 rgba(0,0,0,0.85))' }
@@ -113,34 +112,6 @@ function ShoeIcon({ className }) {
         <path d="M10 66 L14 32 Q30 38 40 28 L54 44 Q72 50 88 56 Q95 61 92 70 L12 70 Z" fill="#ff3b4a" />
         <path d="M10 70 H92 V80 H10 Z" fill="#ffffff" />
       </g>
-    </svg>
-  )
-}
-
-function CursorIcon({ rainbow, className, style }) {
-  return (
-    <svg
-      viewBox="0 0 100 100"
-      aria-hidden="true"
-      className={`shrink-0 ${className}`}
-      style={{ ...ICON_SHADOW, ...style }}
-    >
-      <defs>
-        <linearGradient id="hud-rainbow" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#ff3b6b" />
-          <stop offset="0.25" stopColor="#ffb13b" />
-          <stop offset="0.5" stopColor="#5aff6a" />
-          <stop offset="0.75" stopColor="#3bb8ff" />
-          <stop offset="1" stopColor="#b35cff" />
-        </linearGradient>
-      </defs>
-      <path
-        d="M22 8 L22 80 L40 64 L52 92 L66 86 L54 58 L78 58 Z"
-        fill={rainbow ? 'url(#hud-rainbow)' : '#ffffff'}
-        stroke={INK}
-        strokeWidth="6"
-        strokeLinejoin="round"
-      />
     </svg>
   )
 }
@@ -448,11 +419,7 @@ function BuxChip() {
  * balance below that.
  */
 /**
- * Wins, the pet bonus, Bux and the Pets button, down the left edge.
- *
- * Halved on a phone. At full size this rail reaches far enough down the screen to
- * meet the thumbstick, which on a phone held sideways leaves the two overlapping -
- * and of the two, the one you have to be able to hit is the stick.
+ * Wins, the pet bonus and Bux at the upper-left.
  */
 function WinsCounter() {
   const touch = useTouchDevice()
@@ -479,21 +446,23 @@ function WinsCounter() {
         </span>
       )}
       <BuxChip />
-      {/* Side by side, not stacked: a rail of single buttons running down the left
-          edge eats the height a phone held sideways does not have, and the games
-          this one is laid out after pair them up for the same reason. Controls
-          drops to its own row underneath rather than joining this one - a third
-          button here would widen the rail past the trophy count above it. */}
-      <div className={`flex flex-col items-start ${touch ? 'gap-1' : 'gap-2'}`}>
-        <div className={`flex items-start ${touch ? 'gap-1' : 'gap-2'}`}>
-          <PetsButton />
-          <RebirthButton />
-        </div>
-        <div className={`flex items-start ${touch ? 'gap-1' : 'gap-2'}`}>
-          <ShopButton />
-          <ControlsButton />
-        </div>
-      </div>
+    </div>
+  )
+}
+
+/** Vertically stacked action buttons centred along the left edge. */
+function LeftActionRail() {
+  const touch = useTouchDevice()
+  return (
+    <div
+      className={`pointer-events-none absolute z-10 flex -translate-y-1/2 flex-col items-center ${
+        touch ? 'left-2 top-1/2 gap-1' : 'left-4 top-1/2 gap-2'
+      }`}
+    >
+      <PetsButton />
+      <RebirthButton />
+      <ShopButton />
+      <ControlsButton />
     </div>
   )
 }
@@ -518,7 +487,6 @@ function WinsCounter() {
  */
 const BUTTON_H = (scale) => Math.max(38, Math.round(40 * scale))
 const BOOST_W = (scale) => Math.max(72, Math.round(78 * scale))
-const AUTO_W = (scale) => Math.max(96, Math.round(104 * scale))
 const ICON_PX = (scale) => Math.max(16, Math.round(18 * scale))
 
 function LevelBar({ ammo }) {
@@ -531,7 +499,7 @@ function LevelBar({ ammo }) {
   const fraction = max ? 1 : Math.min(1, (ammo - from) / (to - from))
   return (
     <div
-      className={`relative overflow-hidden rounded-xl ${touch ? 'border-2' : 'h-16 border-4'}`}
+      className={`relative w-full overflow-hidden rounded-xl ${touch ? 'border-2' : 'h-16 border-4'}`}
       style={{
         borderColor: INK,
         background: '#5a3208',
@@ -599,50 +567,9 @@ function BoostButton({ def, now }) {
   )
 }
 
-function AutoClickerButton({ kind }) {
-  const touch = useTouchDevice()
-  const scale = useTouchScale()
-  const on = useGame((s) => s.autoClick === kind)
-  const owned = useGame((s) => s.opAutoOwned)
-  const op = kind === 'op'
-  const stateText = on ? 'On' : op ? 'Off' : 'Start!'
-  const stateColor = on ? 'text-lime-400' : op ? 'text-red-500' : 'text-sky-500'
-  return (
-    <GameButton
-      colors={op ? ['#fff07a', '#ffc21a'] : ['#ffffff', '#dfe6f0']}
-      onClick={() => useGame.getState().toggleAutoClick(kind)}
-      className={`${touch ? 'shrink-0' : 'h-16 w-full'} ${on ? 'ring-4 ring-lime-300' : ''}`}
-      style={touch ? { width: AUTO_W(scale), height: BUTTON_H(scale), borderWidth: 2 } : undefined}
-    >
-      <span
-        className={`absolute left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md text-white ${
-          touch ? '-top-2 px-1 text-[9px]' : '-top-3 px-2 text-xs'
-        }`}
-        style={{ ...CHIP, background: INK }}
-      >
-        {op ? 'OP Auto Clicker' : 'Auto Clicker'}
-      </span>
-      <span className={`flex items-center justify-center ${touch ? 'gap-0.5 px-1' : 'gap-2 px-2'}`}>
-        <CursorIcon
-          rainbow={op}
-          className={touch ? '' : 'h-10 w-10'}
-          style={touch ? { width: ICON_PX(scale), height: ICON_PX(scale) } : undefined}
-        />
-        <span
-          className={`${touch ? '' : 'text-3xl'} ${stateColor}`}
-          style={touch ? { ...OUTLINE, fontSize: Math.max(13, Math.round(15 * scale)) } : OUTLINE}
-        >
-          {stateText}
-        </span>
-      </span>
-      {op && !owned && <PriceTag cost={AUTO_CLICKERS.op.cost} />}
-    </GameButton>
-  )
-}
-
 /**
  * The HUD: toasts, click popups, the Wins counter, the shop and its offers, the boss
- * bar, and the bottom panel with Ammo, the level bar, boosts and auto clickers. Also
+ * bar, and the bottom panel with Ammo, the level bar and boosts. Also
  * handles E (tap, or hold on Win pads).
  */
 
@@ -668,6 +595,26 @@ export function GameHUD() {
   const message = useGame((s) => s.message)
   const activeTrainer = useGame((s) => s.activeTrainer)
   const now = useNow()
+
+  useEffect(() => {
+    const shortcuts = {
+      KeyP: () => useGame.getState().togglePetsPanel(),
+      KeyR: () => useGame.getState().toggleRebirthPanel(),
+      KeyB: () => useGame.getState().toggleShop(),
+      KeyC: () => useGame.getState().toggleControlsPanel(),
+    }
+    const onKeyDown = (e) => {
+      if (e.repeat || e.altKey || e.ctrlKey || e.metaKey) return
+      if (e.target instanceof HTMLElement && e.target.isContentEditable) return
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target?.tagName)) return
+      const action = shortcuts[e.code]
+      if (!action) return
+      e.preventDefault()
+      action()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
 
   const level = levelFor(ammo)
   const multiplier =
@@ -696,8 +643,9 @@ export function GameHUD() {
     <>
       <ClickPopups />
       <AutoWinsTicker />
-      {/* Wins, the pet bonus, Bux and the Pets button, stacked down the left rail. */}
+      {/* Wins stay at the top; action buttons form their own centred left rail. */}
       <WinsCounter />
+      <LeftActionRail />
       <AutoWinsButton />
       <BossBar />
       <PromoStack />
@@ -717,9 +665,8 @@ export function GameHUD() {
         anything parked there hides them. The one thing a player has to be able to see
         in a game about hitting things is the thing doing the hitting.
 
-        Ammo, speed and the multiplier share one line; the boosts and the auto
-        clickers share another that scrolls sideways when it has to, so all five stay
-        reachable however narrow the screen is.
+        Ammo, speed and the multiplier share one line. The level bar stays centred,
+        with the boost row below it.
       */}
       <div
         ref={strip}
@@ -769,20 +716,22 @@ export function GameHUD() {
 
         {touch ? (
           <>
-            <div className="flex items-baseline justify-center gap-3 text-white" style={OUTLINE}>
+            <div className="flex w-full items-center justify-between gap-2 text-white" style={OUTLINE}>
               {/* Click popups fly to this element; the value bounces as it changes. */}
-              <span data-ammo-counter className="flex items-center gap-1 text-lg">
+              <span data-ammo-counter className="flex items-center gap-1 whitespace-nowrap text-base">
                 <AmmoIcon className="h-5 w-5" />
                 <span key={ammo} className="power-bump">
                   {formatNumber(ammo)}
                 </span>{' '}
                 Ammo
               </span>
-              <span className="flex items-center gap-0.5 text-xs text-sky-300">
-                <ShoeIcon className="h-4 w-4" />
-                {WALK_SPEED}
+              <span className="flex flex-col items-end text-[10px] leading-tight text-sky-300">
+                <span className="flex items-center gap-0.5">
+                  <ShoeIcon className="h-3 w-3" />
+                  Speed: {WALK_SPEED}
+                </span>
+                <span className="text-lime-300">{multiplier.toFixed(2)}x Power</span>
               </span>
-              <span className="text-xs text-lime-300">{multiplier.toFixed(2)}x Power</span>
             </div>
             <LevelBar ammo={ammo} />
             {/* pt-3.5 leaves room for the price tags, which hang above each button. */}
@@ -790,40 +739,33 @@ export function GameHUD() {
               {BOOSTS.map((def) => (
                 <BoostButton key={def.multiplier} def={def} now={now} />
               ))}
-              <AutoClickerButton kind="op" />
-              <AutoClickerButton kind="normal" />
             </div>
           </>
         ) : (
           <>
-            <div data-ammo-counter className="flex items-center gap-2 text-5xl text-white" style={OUTLINE}>
-              <AmmoIcon className="h-12 w-12" />
-              <span key={ammo} className="power-bump">
-                {formatNumber(ammo)}
-              </span>
-              Ammo
-            </div>
-            <div className="mt-1 flex w-full max-w-4xl items-stretch gap-3">
-            <div className="flex w-44 shrink-0 flex-col items-end justify-start gap-1 pt-2 text-2xl text-sky-300" style={OUTLINE}>
-              <span className="flex items-center gap-1 whitespace-nowrap">
-                <ShoeIcon className="h-8 w-8" />
-                Speed: {WALK_SPEED}
-              </span>
-              <span className="whitespace-nowrap text-lime-300">{multiplier.toFixed(2)}x Power</span>
-            </div>
-
-            <div className="flex min-w-0 flex-1 flex-col gap-4">
+            <div className="mt-1 flex w-full max-w-4xl flex-col items-center gap-2">
+              <div className="flex w-full items-center justify-between gap-3 text-white" style={OUTLINE}>
+                {/* Ammo stays left; speed and power sit together on the right. */}
+                <span data-ammo-counter className="flex items-center gap-1.5 whitespace-nowrap text-4xl">
+                  <AmmoIcon className="h-10 w-10" />
+                  <span key={ammo} className="power-bump">
+                    {formatNumber(ammo)}
+                  </span>
+                  Ammo
+                </span>
+                <span className="flex flex-col items-end text-sm leading-tight text-sky-300">
+                  <span className="flex items-center gap-1 whitespace-nowrap">
+                    <ShoeIcon className="h-4 w-4" />
+                    Speed: {WALK_SPEED}
+                  </span>
+                  <span className="whitespace-nowrap text-lime-300">{multiplier.toFixed(2)}x Power</span>
+                </span>
+              </div>
               <LevelBar ammo={ammo} />
-              <div className="flex gap-3">
+              <div className="flex w-full gap-3">
                 {BOOSTS.map((def) => (
                   <BoostButton key={def.multiplier} def={def} now={now} />
                 ))}
-              </div>
-            </div>
-
-              <div className="flex w-48 shrink-0 flex-col gap-4">
-                <AutoClickerButton kind="op" />
-                <AutoClickerButton kind="normal" />
               </div>
             </div>
           </>

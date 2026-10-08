@@ -332,8 +332,8 @@ export function RebirthButton() {
     <button
       type="button"
       onClick={() => useGame.getState().toggleRebirthPanel()}
-      className={`pointer-events-auto relative mt-2 flex cursor-pointer flex-col items-center justify-center rounded-xl transition duration-100 hover:brightness-110 active:translate-y-0.5 ${
-        touch ? 'h-11 w-11 border-2' : 'h-16 w-16 border-4'
+      className={`pointer-events-auto relative mt-0 flex cursor-pointer flex-col items-center justify-center rounded-xl transition duration-100 hover:-translate-y-0.5 hover:scale-[1.03] hover:brightness-110 active:translate-y-0.5 active:scale-[0.98] ${
+        touch ? 'h-12 w-12 border-2' : 'h-[4.5rem] w-[4.5rem] border-4'
       }`}
       style={{
         borderColor: INK,
@@ -342,15 +342,16 @@ export function RebirthButton() {
       }}
     >
       <span className="pointer-events-none absolute inset-x-2 top-1 h-1.5 rounded-full bg-white/35" />
+      <span className="pointer-events-none absolute -left-2 -top-2 z-20 flex h-5 min-w-5 items-center justify-center rounded-md border-2 px-1 text-[11px] text-white" style={{ ...CHIP, borderColor: INK, background: '#e3342f' }}>R</span>
       {/* The circular arrows, as the reference art has them. The star still means
           "how many", and it is what the badge and the panel's second row count in -
           the arrows are the verb, the star is the score. */}
-      <span className={touch ? 'text-xl' : 'text-3xl'} style={EMOJI} aria-hidden>
+      <span className={touch ? 'text-2xl' : 'text-4xl'} style={EMOJI} aria-hidden>
         🔄
       </span>
       {/* Two sizes down from the Pets tile next to it: "Rebirth" is three letters
           longer than "Pets" and ran off both sides of the button at text-sm. */}
-      <span className={`leading-none text-white ${touch ? 'text-[8px]' : 'text-[11px]'}`} style={CHIP}>
+      <span className={`leading-none text-white ${touch ? 'text-[9px]' : 'text-xs'}`} style={CHIP}>
         Rebirth
       </span>
       {/* The star count once there is one, and a "!" the moment another is

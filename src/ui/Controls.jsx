@@ -16,6 +16,10 @@ const ROWS = [
   ['Right-drag', 'turn the camera'],
   ['Scroll', 'zoom'],
   ['M', 'sound on / off'],
+  ['P', 'open / close Pets'],
+  ['R', 'open / close Rebirth'],
+  ['B', 'open / close Shop'],
+  ['C', 'open / close Controls'],
 ]
 
 const INK = '#1b1b25'
@@ -120,7 +124,7 @@ export function ControlsButton() {
     <button
       type="button"
       onClick={() => useGame.getState().toggleControlsPanel()}
-      className="pointer-events-auto relative flex h-16 w-16 cursor-pointer flex-col items-center justify-center rounded-xl border-4 transition duration-100 hover:brightness-110 active:translate-y-0.5"
+      className="pointer-events-auto relative flex h-[4.5rem] w-[4.5rem] cursor-pointer flex-col items-center justify-center rounded-xl border-4 transition duration-100 hover:-translate-y-0.5 hover:scale-[1.03] hover:brightness-110 active:translate-y-0.5 active:scale-[0.98]"
       style={{
         borderColor: INK,
         background: 'linear-gradient(to bottom, #6fb8ff, #2f7ad6)',
@@ -128,7 +132,8 @@ export function ControlsButton() {
       }}
     >
       <span className="pointer-events-none absolute inset-x-2 top-1 h-1.5 rounded-full bg-white/35" />
-      <span className="text-3xl" style={EMOJI} aria-hidden>
+      <span className="pointer-events-none absolute -left-2 -top-2 z-20 flex h-5 min-w-5 items-center justify-center rounded-md border-2 px-1 text-[11px] text-white" style={{ ...CHIP, borderColor: INK, background: '#2879f0' }}>C</span>
+      <span className="text-4xl" style={EMOJI} aria-hidden>
         ⌨️
       </span>
       <span className="text-[11px] leading-none text-white" style={CHIP}>

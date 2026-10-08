@@ -32,12 +32,10 @@ import { getGun } from './guns'
 /**
  * Held gun size relative to its shop model.
  *
- * Not larger than this, however tempting. The later guns carry their own `size` on
- * top of it - the Supernova Minigun is 2.06 - so every increase here is multiplied by
- * two at the top of the shop, and a gun much past this one pokes through the
- * player's own head on the recoil.
+ * Later guns carry their own `size` on top of this, so keep the held scale moderate
+ * to make the gun read clearly without letting the largest models clip the avatar.
  */
-const HELD_SCALE = 0.8
+const HELD_SCALE = 1.08
 /**
  * Cancels the arm's raise, so that with the arm held out on aim the barrel points
  * straight ahead instead of at the sky. The recoil then tips it up, as it should.
@@ -275,7 +273,7 @@ export const PlayerAvatar = forwardRef(function PlayerAvatar(
       {hand &&
         createPortal(
           <group scale={HELD_SCALE / fit.scale} rotation={HELD_ROTATION}>
-            <GunModel gun={gun} minGlow={HELD_MIN_GLOW} flashRef={gunFlash} />
+            <GunModel gun={gun} minGlow={HELD_MIN_GLOW} flashRef={gunFlash} local />
           </group>,
           hand,
         )}

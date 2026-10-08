@@ -24,7 +24,7 @@ const BEAM_W = 0.1
 const IMPACT_S = 0.12
 /** How far a shot at nothing in particular flies before it fades out. */
 const RANGE = 16
-/** The gun is about this high off the body's centre, and this far in front. */
+/** Fallback muzzle offsets used only before the held gun has mounted. */
 const MUZZLE_UP = 0.5
 const MUZZLE_FORWARD = 1
 const MUZZLE_SIDE = 0.3
@@ -71,11 +71,15 @@ export function ShotEffects({ bodyRef, anchorRef }) {
         const yaw = aim.yaw
         const fx = Math.sin(yaw)
         const fz = Math.cos(yaw)
-        _from.set(
-          _here.x + fx * MUZZLE_FORWARD - fz * MUZZLE_SIDE,
-          _here.y + MUZZLE_UP,
-          _here.z + fz * MUZZLE_FORWARD + fx * MUZZLE_SIDE,
-        )
+        if (aim.muzzle) {
+          aim.muzzle.getWorldPosition(_from)
+        } else {
+          _from.set(
+            _here.x + fx * MUZZLE_FORWARD - fz * MUZZLE_SIDE,
+            _here.y + MUZZLE_UP,
+            _here.z + fz * MUZZLE_FORWARD + fx * MUZZLE_SIDE,
+          )
+        }
         if (aim.target && (game.activeTrainer || game.inBossArena)) {
           _to.set(aim.target[0], aim.target[1], aim.target[2])
         } else if (game.nearWall) {
