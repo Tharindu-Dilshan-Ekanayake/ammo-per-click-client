@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 
 import { useTouchDevice } from '../game/device'
 import { formatNumber } from '../game/format'
@@ -9,12 +9,12 @@ import {
   levelFor,
   MAX_REBIRTHS,
   rebirthMultiplier,
-  rebirthPower,
+  rebirthAmmo,
 } from '../game/progression'
 
 /**
- * The Rebirth panel: give up every point of Power for a permanent multiplier on
- * every click after it.
+ * The Rebirth panel: give up all your Ammo for a permanent multiplier on every
+ * click after it.
  *
  * Laid out after the game this one takes its shape from - a "current" column, an
  * arrow, and an "after" column, so the trade reads in one glance rather than a
@@ -23,7 +23,7 @@ import {
  * see game/progression.js for why moving it breaks the arithmetic this game counts
  * in.
  *
- * Nothing but Power is spent, and the panel says so on its face. A button that wipes
+ * Nothing but Ammo is spent, and the panel says so on its face. A button that wipes
  * the biggest number on the screen is frightening, and a player who is not certain
  * what else goes with it simply never presses it.
  */
@@ -117,7 +117,7 @@ function TradeRow({ emoji, from, to, touch }) {
  * for a second press the player has long since forgotten making the first one.
  */
 function RebirthDialog() {
-  const power = useGame((s) => s.power)
+  const ammo = useGame((s) => s.ammo)
   const rebirths = useGame((s) => s.rebirths)
   const touch = useTouchDevice()
   // Two presses, always. The first only asks; nothing is spent until the second.
@@ -133,9 +133,9 @@ function RebirthDialog() {
   }, [])
 
   const maxedOut = rebirths >= MAX_REBIRTHS
-  const need = rebirthPower(rebirths)
-  const ready = canRebirth(power, rebirths)
-  const fraction = maxedOut ? 1 : Math.min(1, power / need)
+  const need = rebirthAmmo(rebirths)
+  const ready = canRebirth(ammo, rebirths)
+  const fraction = maxedOut ? 1 : Math.min(1, ammo / need)
   const close = () => useGame.getState().toggleRebirthPanel(false)
 
   return (
@@ -159,7 +159,7 @@ function RebirthDialog() {
           </span>
           <div className={`flex items-center ${touch ? 'gap-2' : 'gap-3'}`}>
             <span className={`text-white/90 ${touch ? 'text-base' : 'text-2xl'}`} style={OUTLINE}>
-              Level {levelFor(power)}
+              Level {levelFor(ammo)}
             </span>
             <PanelButton
               colors={['#ff6a6a', '#d02b2b']}
@@ -173,7 +173,7 @@ function RebirthDialog() {
 
         <div className={`flex flex-col ${touch ? 'gap-2' : 'gap-3'}`}>
           <TradeRow
-            emoji="⚔️"
+            emoji="🔫"
             from={`x${rebirthMultiplier(rebirths)}`}
             to={maxedOut ? 'MAX' : `x${rebirthMultiplier(rebirths + 1)}`}
             touch={touch}
@@ -186,7 +186,7 @@ function RebirthDialog() {
           />
 
           {/*
-            How close the next one is, measured in Power rather than in levels. The
+            How close the next one is, measured in Ammo rather than in levels. The
             level bar tops out at MAX_LEVEL long before the later rebirths are
             affordable, so a level reading would sit at "full" for hours and tell the
             player nothing about the thing they are actually waiting for.
@@ -206,7 +206,7 @@ function RebirthDialog() {
               <span className={`text-white ${touch ? 'text-sm' : 'text-2xl'}`} style={OUTLINE}>
                 {maxedOut
                   ? 'Every Rebirth done!'
-                  : `${formatNumber(power)} / ${formatNumber(need)} Power`}
+                  : `${formatNumber(ammo)} / ${formatNumber(need)} Ammo`}
               </span>
             </div>
           </div>
@@ -218,7 +218,7 @@ function RebirthDialog() {
             className={touch ? 'text-xl' : 'text-3xl'}
           >
             {/*
-              What is missing, in Power, because Power is the only thing the gate
+              What is missing, in Ammo, because Ammo is the only thing the gate
               actually measures. This used to read "Reach Level 20 to Rebirth",
               which is true of the first rebirth and a lie about every one after it:
               the second costs five times what the last level does, so a player
@@ -228,7 +228,7 @@ function RebirthDialog() {
             {maxedOut
               ? 'Nothing left to Rebirth'
               : !ready
-                ? `${formatNumber(need - power)} more Power`
+                ? `${formatNumber(need - ammo)} more Ammo`
                 : confirming
                   ? 'Tap again to confirm'
                   : 'Rebirth'}
@@ -238,7 +238,7 @@ function RebirthDialog() {
             className={`text-center text-white/75 ${touch ? 'text-[11px]' : 'text-base'}`}
             style={CHIP}
           >
-            Only Power is spent. Your Wins, swords, pets and trainers all stay.
+            Only Ammo is spent. Your Wins, guns, pets and targets all stay.
           </span>
         </div>
       </div>
@@ -321,36 +321,58 @@ export function RebirthPanel() {
   )
 }
 
+/** The rebirth arrows, shared by the HUD button and the Wins counter. */
+export function RebirthIcon({ className = 'h-8 w-8' }) {
+  const id = useId().replace(/[^a-zA-Z0-9_-]/g, '')
+  return (
+    <svg viewBox="0 0 128 128" className={className} style={EMOJI} aria-hidden="true">
+      <defs>
+        <linearGradient id={`${id}-pink`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#ff91b2" />
+          <stop offset="1" stopColor="#ed1478" />
+        </linearGradient>
+        <linearGradient id={`${id}-blue`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#a9e8ff" />
+          <stop offset="1" stopColor="#72cefa" />
+        </linearGradient>
+      </defs>
+      <path d="M21 68c-7-13-4-30 7-42C40 13 57 8 73 11c13 2 24 9 32 20l8-6 8 38c1 6-3 11-9 12l-34 7 11-13c-6-8-14-12-24-12-12 0-21 7-25 17z" fill={`url(#${id}-pink)`} stroke="#111318" strokeWidth="7" strokeLinejoin="round" />
+      <path d="M107 60c7 13 4 30-7 42-12 13-29 18-45 15-13-2-24-9-32-20l-8 6-8-38c-1-6 3-11 9-12l34-7-11 13c6 8 14 12 24 12 12 0 21-7 25-17z" fill={`url(#${id}-blue)`} stroke="#111318" strokeWidth="7" strokeLinejoin="round" />
+      <path d="M21 67c7 12 18 20 32 22 16 2 31-7 37-22l17 7c-7 20-27 33-49 31-18-1-33-11-41-26z" fill="#f8fbff" />
+      <path d="m46 44 14 1 17 12-11 14-15-5-10-11z" fill="#111318" stroke="#111318" strokeWidth="4" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 /** The left-rail button that opens the panel. */
 export function RebirthButton() {
   const touch = useTouchDevice()
-  const power = useGame((s) => s.power)
+  const ammo = useGame((s) => s.ammo)
   const rebirths = useGame((s) => s.rebirths)
-  const ready = canRebirth(power, rebirths)
+  const ready = canRebirth(ammo, rebirths)
 
   return (
     <button
       type="button"
       onClick={() => useGame.getState().toggleRebirthPanel()}
-      className={`pointer-events-auto relative mt-2 flex cursor-pointer flex-col items-center justify-center rounded-xl transition duration-100 hover:brightness-110 active:translate-y-0.5 ${
-        touch ? 'h-11 w-11 border-2' : 'h-16 w-16 border-4'
+      className={`pointer-events-auto relative mt-0 flex cursor-pointer flex-col items-center justify-center rounded-xl transition duration-100 hover:-translate-y-0.5 hover:scale-[1.03] hover:brightness-110 active:translate-y-0.5 active:scale-[0.98] ${
+        touch ? 'h-12 w-12 border-2' : 'h-[4.5rem] w-[4.5rem] border-4'
       }`}
       style={{
         borderColor: INK,
-        background: 'linear-gradient(to bottom, #c77dff, #7a42c8)',
+        background: 'linear-gradient(to bottom, #ff8585, #d6283d)',
         boxShadow: 'inset 0 -5px 0 rgba(0,0,0,0.22), 0 4px 0 rgba(0,0,0,0.45)',
       }}
     >
       <span className="pointer-events-none absolute inset-x-2 top-1 h-1.5 rounded-full bg-white/35" />
+      <span className="pointer-events-none absolute -left-2 -top-2 z-20 flex h-5 min-w-5 items-center justify-center rounded-md border-2 px-1 text-[11px] text-white" style={{ ...CHIP, borderColor: INK, background: '#e3342f' }}>R</span>
       {/* The circular arrows, as the reference art has them. The star still means
           "how many", and it is what the badge and the panel's second row count in -
           the arrows are the verb, the star is the score. */}
-      <span className={touch ? 'text-xl' : 'text-3xl'} style={EMOJI} aria-hidden>
-        🔄
-      </span>
+      <RebirthIcon className={touch ? 'h-9 w-9' : 'h-10 w-10'} />
       {/* Two sizes down from the Pets tile next to it: "Rebirth" is three letters
           longer than "Pets" and ran off both sides of the button at text-sm. */}
-      <span className={`leading-none text-white ${touch ? 'text-[8px]' : 'text-[11px]'}`} style={CHIP}>
+      <span className={`leading-none text-white ${touch ? 'text-[9px]' : 'text-xs'}`} style={CHIP}>
         Rebirth
       </span>
       {/* The star count once there is one, and a "!" the moment another is

@@ -234,7 +234,7 @@ const HAND_BONE = 'ArmR2'
 const RIGHT_ARM_MESH = /arm_r$/i
 
 /**
- * Adds an empty holder to the right forearm bone for a held item (the sword).
+ * Adds an empty holder to the right forearm bone for a held item (the gun).
  * Call `placeHandHolder` once the body parts are applied to move it into the palm.
  */
 export function attachHandHolder(rig) {
@@ -396,35 +396,36 @@ const sway = (rig, name, angle) => rotateBone(rig, name, 'axisZ', angle)
  * Poses the rig for the current motion state.
  *
  * @param {object} rig from `collectRig`
- * @param {{ time: number, speed: number, grounded: boolean, maxSpeed: number, swing?: number }} motion
+ * @param {{ time: number, speed: number, grounded: boolean, maxSpeed: number, shot?: number }} motion
  *   `speed` is horizontal speed in world units/sec; `maxSpeed` is what counts as a
  *   full-amplitude run, so the cycle scales smoothly from a walk to a sprint.
- *   `swing` is sword-swing progress: 0..1 while a swing plays, anything else when idle.
+ *   `shot` is recoil progress: 0..1 while a shot's kick plays, anything else when idle.
  */
 export function animateRig(rig, motion) {
   if (!rig?.skeleton || !motion) return
   poseLocomotion(rig, motion)
-  poseSword(rig, motion.swing)
+  poseGun(rig, motion.shot)
 }
 
-/** Sword arm raised slightly forward, so the blade is held out in front. */
-const HOLD_ANGLE = -0.45
-/** Extra raise at the top of the wind-up (negative swings the arm up and forward). */
-const WINDUP_ANGLE = -2.7
-const WINDUP_PORTION = 0.3
+/**
+ * Gun arm held straight out in front, the way the reference game's characters
+ * carry theirs. PlayerAvatar tilts the gun by the opposite of this, so the barrel
+ * comes out level. Negative raises the arm up and forward.
+ */
+export const AIM_ANGLE = -1.4
+/** How far the arm kicks up on a shot. */
+const RECOIL_ANGLE = -0.38
 
-/** Holds the sword out, and layers the overhead chop on top while a swing plays. */
-function poseSword(rig, progress = Infinity) {
-  let angle = HOLD_ANGLE
+/**
+ * Holds the gun out, and kicks it up and back down while a shot plays: up fast in
+ * the first fifth, then settling back over the rest. The right arm takes no part in
+ * the walk cycle (see poseLocomotion) - a gun swinging at your side as you run would
+ * point at the floor every other step.
+ */
+function poseGun(rig, progress = Infinity) {
+  let angle = AIM_ANGLE
   if (progress >= 0 && progress < 1) {
-    if (progress < WINDUP_PORTION) {
-      const t = progress / WINDUP_PORTION
-      angle += WINDUP_ANGLE * (1 - (1 - t) * (1 - t))
-    } else {
-      // Chop down past the hold (the sine overshoot), settling back on it at t = 1.
-      const t = (progress - WINDUP_PORTION) / (1 - WINDUP_PORTION)
-      angle += WINDUP_ANGLE * (1 - t) ** 2 + 0.6 * Math.sin(Math.PI * t)
-    }
+    angle += RECOIL_ANGLE * (progress < 0.2 ? progress / 0.2 : (1 - (progress - 0.2) / 0.8) ** 2)
   }
   swing(rig, 'ArmR1', angle)
 }
@@ -451,7 +452,6 @@ function poseLocomotion(rig, motion) {
     swing(rig, 'LegR1', 0.3)
     swing(rig, 'LegR2', 0.2)
     swing(rig, 'ArmL1', -2.1)
-    swing(rig, 'ArmR1', -2.1)
     swing(rig, 'Spine1', -0.1)
     return
   }
@@ -460,7 +460,6 @@ function poseLocomotion(rig, motion) {
   if (ratio < 0.04) {
     const idle = Math.sin(time * 1.6)
     sway(rig, 'ArmL1', -0.07 - idle * 0.03)
-    sway(rig, 'ArmR1', 0.07 + idle * 0.03)
     swing(rig, 'Spine1', idle * 0.02)
     rig.root.position.y = rig.rootRestY + idle * 0.03
     return
@@ -479,11 +478,9 @@ function poseLocomotion(rig, motion) {
   swing(rig, 'LegL2', Math.max(0, -cycle) * 1.1 * ratio)
   swing(rig, 'LegR2', Math.max(0, cycle) * 1.1 * ratio)
 
-  // Arms counter-swing against the legs.
+  // The free arm counter-swings against the legs; the gun arm stays on aim.
   swing(rig, 'ArmL1', -cycle * armAmp)
-  swing(rig, 'ArmR1', cycle * armAmp)
   swing(rig, 'ArmL2', Math.max(0, cycle) * 0.5 * ratio)
-  swing(rig, 'ArmR2', Math.max(0, -cycle) * 0.5 * ratio)
 
   // Lean into the run, and bob once per step (twice per full cycle).
   swing(rig, 'Spine1', -0.14 * ratio)

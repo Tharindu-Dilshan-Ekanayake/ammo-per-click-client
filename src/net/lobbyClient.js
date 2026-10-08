@@ -1,6 +1,8 @@
 import { Client } from '@colyseus/sdk'
 import { create } from 'zustand'
 
+import { waitForSDK } from '../bloxity/sdk'
+import { hosting, LOCAL_SERVER_URL, matchmakerOptions, viaMatchmaker } from './hosting'
 import { addSnapshot, newTrack } from './snapshots'
 
 /**
@@ -9,18 +11,22 @@ import { addSnapshot, newTrack } from './snapshots'
  * room already carries the profile that used to be sent as a first message).
  * Joining happens automatically: the server puts us in a lobby with room. If the
  * server can't be reached the game still plays, solo, and keeps retrying.
+ *
+ * On Boxity hosting every connect goes through the matchmaker: the SDK asks
+ * play.bloxity.io for a seat, gets back a relay endpoint pinned to one pod, and a
+ * brand new Client is built on it. Never a Client on <id>.host.bloxity.io - that is
+ * one fixed pod, and Boxity would never see the players or start a second one. A
+ * room that drops out from under us (a deploy draining its pod) is just another
+ * reconnect: resolve again, land on the fresh pod.
  */
 
-/** The server's HTTP address; VITE_SERVER_URL in .env overrides the local default. */
-const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'
-const WS_URL = SERVER_URL.replace(/^http/, 'ws').replace(/\/+$/, '')
-/** Waits before each reconnect attempt; the last repeats. */
+/** Waits before each reconnect attempt; the last repeats. A cold start can take ~45 s. */
 const RETRY_MS = [1000, 2000, 5000, 10000]
 
 /**
  * status: 'connecting' | 'online' | 'offline'
  * lobby: { id, name, max } while online
- * players: the *other* players in our lobby, by id: { name, avatar, sword }
+ * players: the *other* players in our lobby, by id: { name, avatar, gun, pet, trainer, footprints }
  */
 export const useLobby = create(() => ({ status: 'connecting', lobby: null, selfId: null, players: {} }))
 
@@ -31,9 +37,10 @@ export const useLobby = create(() => ({ status: 'connecting', lobby: null, selfI
  */
 export const remoteStates = new Map()
 
-const client = new Client(WS_URL)
+/** Only used without the matchmaker (local development): one fixed server. */
+const localClient = viaMatchmaker ? null : new Client(LOCAL_SERVER_URL.replace(/^http/, 'ws'))
 let room = null
-let profile = { name: 'Player', avatar: null, sword: null, pet: null, trainer: null }
+let profile = { name: 'Player', avatar: null, gun: null, pet: null, trainer: null, footprints: null }
 let stopped = true
 let retries = 0
 let retryTimer = null
@@ -44,10 +51,17 @@ let connectId = 0
 
 function profileOf(player, previous) {
   // Keep the same avatar object when it hasn't changed, so the model isn't rebuilt
-  // just because the player switched swords.
+  // just because the player switched guns.
   const avatar =
     previous && JSON.stringify(previous.avatar) === JSON.stringify(player.avatar) ? previous.avatar : player.avatar
-  return { name: player.name, avatar, sword: player.sword, pet: player.pet, trainer: player.trainer }
+  return {
+    name: player.name,
+    avatar,
+    gun: player.gun,
+    pet: player.pet,
+    trainer: player.trainer,
+    footprints: player.footprints ?? null,
+  }
 }
 
 function retry() {
@@ -99,11 +113,25 @@ function attach(joined) {
   })
 }
 
+/**
+ * A Client to join through. With the matchmaker, a fresh one on every call: each
+ * endpoint is pinned to the pod the matchmaker picked, so reusing an earlier one
+ * would send us back to a pod that may be full or gone.
+ */
+async function clientForJoin() {
+  if (!viaMatchmaker) return localClient
+  const sdk = await waitForSDK()
+  const { endpoint } = await sdk.net.resolveEndpoint(hosting.id, matchmakerOptions)
+  return new Client(endpoint)
+}
+
 async function open() {
   const id = ++connectId
   useLobby.setState({ status: 'connecting' })
   let joined
   try {
+    const client = await clientForJoin()
+    if (id !== connectId || stopped) return
     joined = await client.joinOrCreate('lobby', { ...profile })
   } catch (err) {
     console.warn('[lobby] connect failed', err)
@@ -139,14 +167,14 @@ export function disconnectLobby() {
   useLobby.setState({ status: 'offline', lobby: null, selfId: null, players: {} })
 }
 
-/** Our name / avatar / sword. Remembered for (re)connects and sent now if online. */
+/** Our name / avatar / gun. Remembered for (re)connects and sent now if online. */
 export function updateProfile(next) {
   profile = next
   room?.send('profile', next)
 }
 
 /**
- * Our position (the body's centre), how many swings we've made, and the time (ms,
+ * Our position (the body's centre), how many shots we've fired, and the time (ms,
  * our clock) that position is for.
  */
 export function sendState(p, sw, ts = performance.now()) {

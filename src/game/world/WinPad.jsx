@@ -7,7 +7,8 @@ import { AdditiveBlending, DoubleSide } from 'three'
 import { formatNumber } from '../format'
 import { useGame } from '../gameStore'
 import { getPass } from '../passes'
-import { HOLD_S, padPower, padUnlocked, padWins } from '../walls'
+import { useBuxPrice } from '../../bloxity/prices'
+import { HOLD_S, padAmmo, padUnlocked, padWins } from '../walls'
 import { Label, Sparkle } from './Effects'
 import InteractPrompt, { HOLD_RING } from './InteractPrompt'
 import { beamTexture, radialGlowTexture, shade, studTexture } from './textures'
@@ -25,14 +26,16 @@ const BEAM_H = 3.2
  * same hold on E opens the SDK's purchase modal rather than paying out — holding
  * rather than tapping on purpose, so a stray key press can never start a payment.
  *
- * @param {{ number: number, pad: object, position: number[] }} props
- *   `number` is the wall it stands before; `pad` is an entry of WIN_PADS.
+ * @param {{ number: number, pad: object, position: number[], home?: number[] }} props
+ *   `number` is the wall it stands before; `pad` is an entry of WIN_PADS. `home` is
+ *   where it sends you once paid: the lobby's spawn, or Space World's.
  */
-export function WinPad({ number, pad, position }) {
+export function WinPad({ number, pad, position, home = SPAWN }) {
   const key = `${number}:${pad.id}`
-  const needed = padPower(number, pad)
+  const needed = padAmmo(number, pad)
   const gain = padWins(number, pad)
   const pass = pad.pass ? getPass(pad.pass) : null
+  const passPrice = useBuxPrice(pass)
   const unlocked = useGame((s) => padUnlocked(number, pad, s))
   const inRange = useGame((s) => s.interact?.kind === 'pad' && s.interact.id === key)
 
@@ -44,7 +47,7 @@ export function WinPad({ number, pad, position }) {
   const playerBody = useRef(null)
 
   // How brightly a *locked* pad burns. A Bux pad is for sale, not out of reach, so
-  // it keeps most of its glow to advertise itself; a pad that just needs more Power
+  // it keeps most of its glow to advertise itself; a pad that just needs more Ammo
   // goes all but dark.
   const dim = pass ? 0.55 : 0.2
 
@@ -72,7 +75,7 @@ export function WinPad({ number, pad, position }) {
       }
       const body = playerBody.current
       if (game.claimPad(number, pad) && body) {
-        body.setTranslation({ x: SPAWN[0], y: SPAWN[1], z: SPAWN[2] }, true)
+        body.setTranslation({ x: home[0], y: home[1], z: home[2] }, true)
         body.setLinvel({ x: 0, y: 0, z: 0 }, true)
       } else {
         game.interactEnd()
@@ -164,8 +167,8 @@ export function WinPad({ number, pad, position }) {
             unlocked
               ? { text: 'HOLD E TO CLAIM', scale: 0.55, fill: '#ffffff' }
               : pass
-                ? { text: `HOLD E - ${pass.bux} BUX`, scale: 0.55, fill: '#bff1ff' }
-                : { text: `NEED ${formatNumber(needed)} POWER`, scale: 0.55, fill: '#ff8a8a' },
+                ? { text: `HOLD E - ${passPrice} BUX`, scale: 0.55, fill: '#bff1ff' }
+                : { text: `NEED ${formatNumber(needed)} AMMO`, scale: 0.55, fill: '#ff8a8a' },
           ]}
           position={[0, 0, 0]}
           size={[3.8, pass && !unlocked ? 2 : 1.5]}
@@ -181,7 +184,7 @@ export function WinPad({ number, pad, position }) {
             ringRef={ring}
             action="Hold E"
             title={`Buy ${pass.name}`}
-            detail={`${pass.bux} Bux  -  x${pad.wins} Wins at every stage, forever`}
+            detail={`${passPrice} Bux  -  x${pad.wins} Wins at every stage, forever`}
           />
         ) : (
           <InteractPrompt
@@ -190,7 +193,7 @@ export function WinPad({ number, pad, position }) {
             ringRef={ring}
             action={unlocked ? 'Hold E' : 'Locked'}
             title={`+${formatNumber(gain)} Wins`}
-            detail={unlocked ? 'Cash in and go back to the lobby' : `Need ${formatNumber(needed)} Power`}
+            detail={unlocked ? 'Cash in and go back to the lobby' : `Need ${formatNumber(needed)} Ammo`}
             tone={unlocked ? 'normal' : 'warn'}
           />
         ))}

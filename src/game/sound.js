@@ -37,7 +37,7 @@ function start() {
   const AudioCtx = window.AudioContext || window.webkitAudioContext
   if (!AudioCtx) return null
   ctx = new AudioCtx()
-  // Squashes the peaks when several sounds stack (a wall shattering mid-sprint)
+  // Squashes the peaks when several sounds stack (a wall shattering mid-burst)
   // instead of letting them clip.
   const limiter = ctx.createDynamicsCompressor()
   limiter.threshold.value = -12
@@ -178,13 +178,46 @@ const SOUNDS = {
     hiss({ filter: 'lowpass', freq: 900, attack: 0.002, decay: 0.12, gain: 0.16 * strength })
   },
 
-  /** The sword cutting the air. `gain` turns it down (automatic and distant swings). */
-  swing({ gain = 1 } = {}) {
-    hiss({ freq: vary(3000, 0.15), to: 450, q: 1.4, attack: 0.05, decay: 0.16, gain: 0.3 * gain })
-    tone({ freq: vary(500, 0.1), to: 180, attack: 0.04, decay: 0.12, gain: 0.025 * gain })
+  /**
+   * A shot. `kind` is the gun's voice (see shotKind); `gain` turns it down for
+   * automatic and distant shots.
+   *
+   * Every gunshot is the same three layers a real one has: the supersonic crack
+   * (bright noise, a few milliseconds), the blast (low-passed noise falling away)
+   * and the thump you feel more than hear (a sine dropping an octave and more) -
+   * then a little room tail so it doesn't stop dead. The kinds differ in how much of
+   * each, which is the difference between a pistol's pop and a launcher's boom.
+   */
+  shoot({ kind = 'bang', gain = 1 } = {}) {
+    if (kind === 'laser') {
+      // Pew: a square wave diving two octaves, a sine an octave under it for
+      // body, and a fizz at the very start.
+      tone({ type: 'square', freq: vary(1700, 0.08), to: 240, attack: 0.002, decay: 0.15, gain: 0.08 * gain })
+      tone({ freq: vary(1100, 0.08), to: 160, attack: 0.002, decay: 0.18, gain: 0.12 * gain })
+      hiss({ filter: 'highpass', freq: 6000, attack: 0.001, decay: 0.03, gain: 0.08 * gain })
+      return
+    }
+    const k = { bang: 1, minigun: 0.75, shotgun: 1.35, heavy: 1.5 }[kind] ?? 1
+    const low = kind === 'shotgun' || kind === 'heavy'
+    hiss({ filter: 'highpass', freq: vary(3200, 0.1), attack: 0.001, decay: 0.035 * k, gain: 0.32 * gain })
+    hiss({ filter: 'lowpass', freq: low ? 1800 : 2800, to: 260, attack: 0.001, decay: 0.16 * k, gain: 0.42 * gain * k })
+    tone({ freq: vary(low ? 120 : 165, 0.08), to: 40, attack: 0.001, decay: 0.13 * k, gain: 0.5 * gain * k })
+    hiss({ at: 0.03, freq: 800, q: 0.6, attack: 0.01, decay: 0.22 * k, gain: 0.07 * gain })
+    if (kind === 'heavy') {
+      // The rocket leaving the tube, under the boom.
+      hiss({ freq: 500, to: 2400, q: 0.9, attack: 0.02, decay: 0.25, gain: 0.12 * gain })
+    }
+    if (kind === 'shotgun') {
+      // Rack the pump: two short metallic clacks after the shot.
+      hiss({ at: 0.32, filter: 'highpass', freq: 2500, attack: 0.001, decay: 0.03, gain: 0.12 * gain })
+      hiss({ at: 0.42, filter: 'highpass', freq: 2000, attack: 0.001, decay: 0.035, gain: 0.14 * gain })
+    } else if (Math.random() < 0.5) {
+      // A spent case landing.
+      tone({ at: 0.16 + Math.random() * 0.08, type: 'triangle', freq: vary(3400, 0.15), attack: 0.001, decay: 0.05, gain: 0.03 * gain })
+    }
   },
 
-  /** The sword striking a stage wall; `strength` 0-1 (how big a bite of its health). */
+  /** A shot striking a stage wall; `strength` 0-1 (how big a bite of its health). */
   wallHit({ strength = 0.5 } = {}) {
     const k = 0.6 + 0.4 * strength
     hiss({ filter: 'highpass', freq: 4000, attack: 0.001, decay: 0.03, gain: 0.12 })
@@ -210,7 +243,48 @@ const SOUNDS = {
     }
   },
 
-  /** A new sword or anything unlocked: a bright rising arpeggio into a shimmering chord. */
+  /** A shot landing on the boss: a heavy metal clang with a low thud under it. */
+  bossHit() {
+    tone({ type: 'triangle', freq: vary(520, 0.1), to: 380, attack: 0.001, decay: 0.12, gain: 0.08 })
+    tone({ freq: vary(90, 0.1), to: 45, attack: 0.002, decay: 0.18, gain: 0.3 })
+    hiss({ filter: 'bandpass', freq: 2200, q: 3, attack: 0.001, decay: 0.08, gain: 0.08 })
+  },
+
+  /** The boss stepping in, and again when the clock starts: a low growl. */
+  bossRoar() {
+    tone({ type: 'sawtooth', freq: 95, to: 62, attack: 0.08, decay: 0.9, gain: 0.07 })
+    tone({ type: 'sawtooth', freq: 142, to: 90, attack: 0.08, decay: 0.8, gain: 0.04 })
+    hiss({ filter: 'lowpass', freq: 700, to: 250, attack: 0.1, decay: 0.9, gain: 0.18 })
+  },
+
+  /** The boss hurling fire: a rising roar of flame. */
+  fireThrow() {
+    hiss({ freq: 300, to: 1800, q: 0.7, attack: 0.03, decay: 0.3, gain: 0.22 })
+    hiss({ filter: 'lowpass', freq: 600, to: 200, attack: 0.02, decay: 0.35, gain: 0.18 })
+    tone({ type: 'sawtooth', freq: 140, to: 70, attack: 0.02, decay: 0.25, gain: 0.03 })
+  },
+
+  /** A fist into the floor, or a meteor landing: a deep boom and a rumble. */
+  slam() {
+    tone({ freq: 90, to: 28, attack: 0.003, decay: 0.7, gain: 0.6 })
+    hiss({ filter: 'lowpass', freq: 1400, to: 90, attack: 0.005, decay: 0.8, gain: 0.45 })
+    hiss({ filter: 'highpass', freq: 2200, attack: 0.001, decay: 0.06, gain: 0.15 })
+  },
+
+  /** The player taking a hit in the arena: a punchy thud and a sharp sting. */
+  playerHurt() {
+    tone({ freq: 220, to: 70, attack: 0.002, decay: 0.2, gain: 0.35 })
+    hiss({ filter: 'bandpass', freq: 1800, q: 2, attack: 0.001, decay: 0.12, gain: 0.2 })
+    tone({ at: 0.04, type: 'square', freq: 180, to: 120, attack: 0.002, decay: 0.12, gain: 0.04 })
+  },
+
+  /** Auto Wins paying out: one soft coin. */
+  coin() {
+    tone({ type: 'square', freq: NOTE.B5, decay: 0.06, gain: 0.03 })
+    tone({ at: 0.06, type: 'square', freq: NOTE.E6, decay: 0.22, gain: 0.03 })
+  },
+
+  /** A new gun or anything unlocked: a bright rising arpeggio into a shimmering chord. */
   unlock() {
     for (const [i, freq] of [NOTE.C5, NOTE.E5, NOTE.G5, NOTE.C6].entries()) {
       tone({ at: i * 0.07, type: 'triangle', freq, decay: 0.3, gain: 0.16 })
@@ -224,7 +298,7 @@ const SOUNDS = {
     hiss({ at: 0.28, filter: 'highpass', freq: 6000, attack: 0.15, decay: 0.6, gain: 0.04 })
   },
 
-  /** Equipping a sword you already own: a quick two-note chime. */
+  /** Equipping a gun you already own: a quick two-note chime. */
   equip() {
     hiss({ filter: 'highpass', freq: 5000, attack: 0.001, decay: 0.02, gain: 0.05 })
     tone({ type: 'triangle', freq: NOTE.G5, decay: 0.1, gain: 0.12 })
@@ -267,7 +341,7 @@ const SOUNDS = {
 }
 
 /** Shortest gap between two plays of the same sound, so rapid repeats don't pile up. */
-const MIN_GAP_S = { step: 0.08, swing: 0.05, wallHit: 0.04, error: 0.25 }
+const MIN_GAP_S = { step: 0.08, shoot: 0.03, wallHit: 0.04, bossHit: 0.05, fireThrow: 0.06, slam: 0.08, error: 0.25 }
 const lastPlayed = {}
 
 /** Plays one of SOUNDS by name. */

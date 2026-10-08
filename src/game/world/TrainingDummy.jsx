@@ -1,9 +1,11 @@
 import { Billboard } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
 import { CuboidCollider, RigidBody } from '@react-three/rapier'
-import { useRef } from 'react'
+import { useMemo, useRef } from 'react'
 import { AdditiveBlending, BoxGeometry, Vector3 } from 'three'
 
+import { setAimTarget } from '../aim'
+import { useBuxPrice } from '../../bloxity/prices'
 import { formatNumber } from '../format'
 import { useGame } from '../gameStore'
 import { DUMMY_OFFSET_Z, rebirthsShort } from '../trainers'
@@ -14,14 +16,16 @@ import InteractPrompt from './InteractPrompt'
 import PadGlow from './PadGlow'
 import { labelTexture, radialGlowTexture, shade, studTexture, targetTexture } from './textures'
 
-/** Delay from click to impact, so the hit lands mid-chop rather than on the wind-up. */
-const HIT_DELAY_S = 0.12
+/** Delay from click to impact: the time the bullet takes to get there. */
+const HIT_DELAY_S = 0.06
 const WOBBLE_S = 0.6
 const FLASH_S = 0.3
 const POPUP_S = 0.9
 /** Popups are pooled; this many can be on screen at once. */
 const POPUP_COUNT = 6
-const HEAD_Y = 3.05
+/** Height of the bullseye's centre, and its radius. */
+const HEAD_Y = 2.2
+const FACE_R = 1.05
 /** How brightly the pad's glow shines: dim while locked, brightest while training. */
 const STATUS_GLOW = {
   active: 1.2,
@@ -30,7 +34,7 @@ const STATUS_GLOW = {
   locked: 0.45,
   /** Wants rebirths first. Dim like `locked`, because that is what it is. */
   rebirth: 0.45,
-  /** A Bux dummy nobody has unlocked yet: for sale, so it stays lit. */
+  /** A Bux target nobody has unlocked yet: for sale, so it stays lit. */
   bux: 1,
 }
 const GEM = ['#d6f6ff', '#2fa8ff']
@@ -38,41 +42,43 @@ const GEM = ['#d6f6ff', '#2fa8ff']
 const _up = new Vector3(0, 1, 0)
 
 /**
- * The dummy's torso, arms and head as one geometry, shared by every pad. They all
- * take the same studded material, so there was never a reason to draw them apart.
+ * The stand a target hangs on - a post, two splayed legs behind it and a backing
+ * board - as one geometry, shared by every pad. They all take the same wood, so
+ * there was never a reason to draw them apart.
  */
-const dummyBody = () =>
-  geometry('dummy-body', () => {
-    const box = (w, h, d, x, y, z) => {
+const standBody = () =>
+  geometry('target-stand', () => {
+    const box = (w, h, d, x, y, z, rx = 0) => {
       const g = new BoxGeometry(w, h, d)
+      if (rx) g.rotateX(rx)
       g.translate(x, y, z)
       return g
     }
     return merge([
-      box(1.3, 1.1, 0.7, 0, 1.9, 0),
-      box(0.5, 0.35, 0.35, -0.9, 2.1, 0),
-      box(0.5, 0.35, 0.35, 0.9, 2.1, 0),
-      box(1.2, 1.2, 0.5, 0, HEAD_Y, 0),
+      box(0.22, HEAD_Y, 0.22, 0, HEAD_Y / 2, -0.25),
+      box(0.18, 2.1, 0.18, -0.55, 1, -0.55, -0.35),
+      box(0.18, 2.1, 0.18, 0.55, 1, -0.55, -0.35),
+      box(FACE_R * 2.05, FACE_R * 2.05, 0.16, 0, HEAD_Y, -0.12),
     ])
   })
 
 // Small canvas: a new texture is cached for every distinct gain shown.
 const popupTexture = (gain) =>
-  labelTexture({ lines: [{ text: `+${formatNumber(gain)}`, fill: ['#fff6a8', '#ffc21a'] }], aspect: 2, width: 256 })
+  labelTexture({ lines: [{ text: `+${formatNumber(gain)}`, icon: 'ammo', fill: ['#fff6a8', '#ffc21a'] }], aspect: 2.4, width: 256 })
 
 /**
- * A training dummy on its pad. Stepping on an unlocked pad starts training; on a
+ * A shooting target on its pad. Stepping on an unlocked pad starts training; on a
  * locked one an E prompt offers to unlock it, and only E spends the Wins. Every
- * click while training makes the dummy wobble, flashes the target and floats up a
- * "+N" for the Power gained.
+ * shot while training rocks the target, flashes the bullseye and floats up a "+N"
+ * for the Ammo gained.
  *
  * @param {{ trainer: object, position: number[], rotationY?: number, labelY?: number }} props
- *   The dummy stands on the pad's local -Z side; `rotationY` turns the whole pad.
+ *   The target stands on the pad's local -Z side; `rotationY` turns the whole pad.
  */
 export function TrainingDummy({ trainer, position, rotationY = 0, labelY = 4.9 }) {
-  // A Bux dummy has no `cost`, so no amount of Wins makes it "affordable" - it
+  // A Bux target has no `cost`, so no amount of Wins makes it "affordable" - it
   // shows as `bux` until it is bought.
-  // 'rebirth' outranks the Wins states on the top three dummies: a price you could
+  // 'rebirth' outranks the Wins states on the top three targets: a price you could
   // pay is the wrong thing to show someone who cannot buy it at any price yet.
   const localStatus = useGame((s) =>
     s.activeTrainer === trainer.id
@@ -88,6 +94,7 @@ export function TrainingDummy({ trainer, position, rotationY = 0, labelY = 4.9 }
               : 'locked',
   )
   const rebirthsToGo = useGame((s) => rebirthsShort(trainer, s.rebirths))
+  const bux = useBuxPrice(trainer)
   // Someone else training here shows the same "TRAINING!" glow, even though it's
   // not us - other players' training pads should look alive to us too.
   const remoteActive = useLobby((s) => Object.values(s.players).some((p) => p.trainer === trainer.id))
@@ -100,17 +107,23 @@ export function TrainingDummy({ trainer, position, rotationY = 0, labelY = 4.9 }
   const padMaterial = useRef(null)
   const popups = useRef([])
   const fx = useRef({ seenSwing: -Infinity, hitAt: -Infinity, next: 0, spawned: [], remoteSw: new Map() })
+  /** The bullseye's centre in world space, for the tracers to fly at. */
+  const bullseye = useMemo(() => {
+    const p = new Vector3(0, HEAD_Y, DUMMY_OFFSET_Z).applyAxisAngle(_up, rotationY)
+    return [position[0] + p.x, position[1] + p.y, position[2] + p.z]
+  }, [position, rotationY])
 
   useFrame(({ camera, clock }) => {
     const now = performance.now() / 1000
     const s = fx.current
     const game = useGame.getState()
+    if (game.activeTrainer === trainer.id) setAimTarget(bullseye)
 
-    // A fresh swing while training here: queue the impact and a number popup. The
-    // freshness check stops a swing made before stepping on from counting as a hit.
-    if (game.activeTrainer === trainer.id && game.swingAt > s.seenSwing && now - game.swingAt < 0.2) {
-      s.seenSwing = game.swingAt
-      s.hitAt = game.swingAt + HIT_DELAY_S
+    // A fresh shot while training here: queue the impact and a number popup. The
+    // freshness check stops a shot fired before stepping on from counting as a hit.
+    if (game.activeTrainer === trainer.id && game.shotAt > s.seenSwing && now - game.shotAt < 0.2) {
+      s.seenSwing = game.shotAt
+      s.hitAt = game.shotAt + HIT_DELAY_S
       const i = s.next
       s.next = (i + 1) % POPUP_COUNT
       s.spawned[i] = s.hitAt
@@ -121,9 +134,9 @@ export function TrainingDummy({ trainer, position, rotationY = 0, labelY = 4.9 }
       }
     }
 
-    // Other players' swings while training here: the same wobble and flash, just
-    // without a number popup - we don't know their exact Power gain. Detected off
-    // their already-networked position track (its swing counter), not a separate
+    // Other players' shots while training here: the same wobble and flash, just
+    // without a number popup - we don't know their exact Ammo gain. Detected off
+    // their already-networked position track (its shot counter), not a separate
     // message, so no extra traffic.
     for (const [id, p] of Object.entries(useLobby.getState().players)) {
       if (p.trainer !== trainer.id) continue
@@ -163,20 +176,22 @@ export function TrainingDummy({ trainer, position, rotationY = 0, labelY = 4.9 }
   })
 
   const onEnter = ({ other }) => {
-    // Local -Z (towards the dummy) is world yaw rotationY + π.
+    // Local -Z (towards the target) is world yaw rotationY + π.
     if (other.rigidBodyObject?.name === 'player') useGame.getState().enterTrainer(trainer.id, rotationY + Math.PI)
   }
   const onExit = ({ other }) => {
-    if (other.rigidBodyObject?.name === 'player') useGame.getState().leaveTrainer(trainer.id)
+    if (other.rigidBodyObject?.name !== 'player') return
+    if (useGame.getState().activeTrainer === trainer.id) setAimTarget(null)
+    useGame.getState().leaveTrainer(trainer.id)
   }
 
   const statusLine =
     status === 'active'
-      ? { text: 'TRAINING!', fill: '#7dff6a' }
+      ? { text: 'SHOOTING!', fill: '#7dff6a' }
       : status === 'unlocked'
         ? { text: trainer.cost === 0 ? 'FREE' : 'UNLOCKED', fill: '#7fd8ff' }
         : status === 'bux'
-          ? { text: `${trainer.bux} Bux`, icon: 'bux', fill: GEM }
+          ? { text: `${bux} Bux`, icon: 'bux', fill: GEM }
           : status === 'rebirth'
             ? {
                 text: `${trainer.rebirths} Rebirth${trainer.rebirths === 1 ? '' : 's'}`,
@@ -219,23 +234,24 @@ export function TrainingDummy({ trainer, position, rotationY = 0, labelY = 4.9 }
         phase={position[2]}
       />
 
-      {/* The dummy pivots at its base, so the wobble rocks it like a punching bag. */}
+      {/* The target pivots at its base, so the wobble rocks it back on its stand. */}
       <group ref={dummy} position={[0, 0, DUMMY_OFFSET_Z]}>
         <mesh position={[0, 0.1, 0]} castShadow receiveShadow>
-          <boxGeometry args={[1.2, 0.2, 1.2]} />
+          <boxGeometry args={[1.4, 0.2, 1.4]} />
           <meshStandardMaterial color="#3a3a44" roughness={0.8} />
         </mesh>
-        <mesh position={[0, 0.8, 0]} castShadow>
-          <boxGeometry args={[0.3, 1.2, 0.3]} />
-          <meshStandardMaterial color="#7b4b27" roughness={0.8} />
+        {/* Post, legs and backing board: one shape, one material, one draw. */}
+        <mesh geometry={standBody()} castShadow>
+          <meshStandardMaterial map={studTexture(['#8a5a2b'], { cells: 1, studsPerCell: 2 })} roughness={0.8} />
         </mesh>
-        {/* Torso, both arms and the head: one shape, one material, one draw. */}
-        <mesh geometry={dummyBody()} castShadow>
-          <meshStandardMaterial map={studTexture([trainer.color], { cells: 1, studsPerCell: 2 })} roughness={0.7} />
+        {/* A rim in the target's own colour, then the bullseye on its face. */}
+        <mesh position={[0, HEAD_Y, -0.01]} rotation={[Math.PI / 2, 0, 0]} castShadow>
+          <cylinderGeometry args={[FACE_R + 0.12, FACE_R + 0.12, 0.14, 32]} />
+          <meshStandardMaterial color={trainer.color} emissive={trainer.color} emissiveIntensity={0.25} roughness={0.5} />
         </mesh>
-        <mesh position={[0, HEAD_Y, 0.26]}>
-          <planeGeometry args={[1, 1]} />
-          <meshStandardMaterial map={targetTexture()} transparent roughness={0.6} />
+        <mesh position={[0, HEAD_Y, 0.065]}>
+          <circleGeometry args={[FACE_R, 40]} />
+          <meshStandardMaterial map={targetTexture(trainer.color)} transparent roughness={0.6} />
         </mesh>
         <mesh position={[0, HEAD_Y, 0.3]}>
           <planeGeometry args={[2.6, 2.6]} />
@@ -256,7 +272,7 @@ export function TrainingDummy({ trainer, position, rotationY = 0, labelY = 4.9 }
         <Sparkle
           count={24}
           scale={[2.6, 3.2, 2.6]}
-          position={[0, 1.8, DUMMY_OFFSET_Z]}
+          position={[0, HEAD_Y, DUMMY_OFFSET_Z]}
           size={5}
           speed={0.8}
           color={trainer.color}
@@ -271,7 +287,7 @@ export function TrainingDummy({ trainer, position, rotationY = 0, labelY = 4.9 }
           }}
           visible={false}
         >
-          <planeGeometry args={[1.6, 0.8]} />
+          <planeGeometry args={[1.92, 0.8]} />
           <meshBasicMaterial map={popupTexture(1)} transparent depthWrite={false} toneMapped={false} />
         </mesh>
       ))}
@@ -279,11 +295,12 @@ export function TrainingDummy({ trainer, position, rotationY = 0, labelY = 4.9 }
       <Billboard position={[0, labelY, DUMMY_OFFSET_Z]}>
         <Label
           lines={[
-            { text: `${trainer.multiplier}x`, icon: 'sword', scale: 1.25, fill: ['#ffffff', '#ffe9a8'] },
+            { text: trainer.name, scale: 0.8, fill: ['#ffffff', '#dfe9ff'] },
+            { text: `${trainer.multiplier}x Power`, icon: 'ammo', scale: 1.1, fill: ['#ffffff', '#ffe9a8'] },
             statusLine,
           ]}
           position={[0, 0, 0]}
-          size={[3.4, 1.6]}
+          size={[3.6, 2]}
           style={{ width: 512 }}
         />
       </Billboard>
@@ -296,12 +313,12 @@ export function TrainingDummy({ trainer, position, rotationY = 0, labelY = 4.9 }
           <InteractPrompt
             position={[0, 2.4, DUMMY_OFFSET_Z / 2]}
             action="Unlock"
-            title={`${trainer.multiplier}x Training`}
+            title={`${trainer.name} · ${trainer.multiplier}x`}
             detail={
               status === 'rebirth'
                 ? `⭐ ${trainer.rebirths} Rebirths · ${rebirthsToGo} to go`
                 : status === 'bux'
-                  ? `💎 ${trainer.bux} Bux  -  yours for good`
+                  ? `💎 ${bux} Bux  -  yours for good`
                   : `🏆 ${formatNumber(trainer.cost)} Wins${status === 'locked' ? ' · not enough Wins' : ''}`
             }
             tone={status === 'locked' || status === 'rebirth' ? 'warn' : 'normal'}
@@ -309,8 +326,8 @@ export function TrainingDummy({ trainer, position, rotationY = 0, labelY = 4.9 }
         )}
 
       <RigidBody type="fixed" colliders={false}>
-        {/* Solid dummy, so you can't walk through it. */}
-        <CuboidCollider args={[0.65, 1.8, 0.4]} position={[0, 1.8, DUMMY_OFFSET_Z]} />
+        {/* Solid target, so you can't walk through it. */}
+        <CuboidCollider args={[FACE_R, HEAD_Y / 2 + 0.5, 0.5]} position={[0, HEAD_Y / 2 + 0.5, DUMMY_OFFSET_Z - 0.2]} />
         <CuboidCollider
           sensor
           args={[1.6, 1, 1.6]}

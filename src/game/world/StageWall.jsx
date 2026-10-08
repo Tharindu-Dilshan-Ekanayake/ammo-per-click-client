@@ -6,7 +6,7 @@ import { AdditiveBlending, BoxGeometry, Color, DoubleSide, Euler, Matrix4, Quate
 import { formatNumber } from '../format'
 import { useGame } from '../gameStore'
 import { playSound } from '../sound'
-import { WALL_REGEN, wallHp } from '../walls'
+import { isSpaceWall, SPACE_WALL_BASE, WALL_REGEN, wallHp } from '../walls'
 import { geometry, merge } from './geometry'
 import {
   createDynamicLabel,
@@ -32,13 +32,13 @@ const BAR_H = BAR_W / HP_BAR_ASPECT
 const BAR_Y = OPEN_H * 0.36
 
 /**
- * How far in front of or behind the wall a swing still reaches it. In a tunnel the
+ * How far in front of or behind the wall a shot still reaches it. In a tunnel the
  * next wall's reach ends inside this wall's frame, so it can't be hit through this
  * one; and a broken wall ignores the player (see onNear), so it never steals hits.
  */
 const REACH = 3.2
-/** Delay from click to impact, so the hit lands mid-chop rather than on the wind-up. */
-const HIT_DELAY_S = 0.12
+/** Delay from click to impact: the time the bullet takes to get there. */
+const HIT_DELAY_S = 0.06
 const SHAKE_S = 0.25
 const FLASH_S = 0.2
 /** Hits weaker than this fraction of the wall's health can't outpace its healing. */
@@ -84,18 +84,21 @@ const _c = new Color()
 
 /**
  * The solid, numbered wall that fills a stage doorway. Stand within reach and click
- * to hit it with your sword: each hit deals your current Power as damage, and the
- * wall heals between hits, so a tougher wall needs more Power. At 0 health it
+ * to shoot it: each shot deals your current Ammo as damage, and the
+ * wall heals between shots, so a tougher wall needs more Ammo. At 0 health it
  * shatters and lets you through, and stays down until you're back in the lobby.
  *
- * @param {{ number: number, stage: number, theme: object, zFront: number }} props
- *   `zFront` is the z of the doorway's front (+Z) face.
+ * @param {{ number: number, stage: number, theme: object, zFront: number, x?: number }} props
+ *   `zFront` is the z of the doorway's front (+Z) face. Space World's walls are
+ *   numbered from 1001 (see walls.js) but wear 1-10, like a stage of their own.
  */
-export function StageWall({ number, stage, theme, zFront }) {
+export function StageWall({ number, stage, theme, zFront, x = 0 }) {
   const maxHp = wallHp(number)
+  const space = isSpaceWall(number)
+  const shown = space ? number - SPACE_WALL_BASE : number
   // Shared by the whole stage; the number is this wall's own.
   const surface = wallTexture(stage, theme.wall)
-  const numberMap = useMemo(() => createWallNumber(number), [number])
+  const numberMap = useMemo(() => createWallNumber(shown), [shown])
   const glow = glowFrameTexture(FRAME_COLOR, FRAME_W, FRAME_H, GLOW_MARGIN)
   const glowStrength = theme.wall.glow ?? 0
 
@@ -202,7 +205,7 @@ export function StageWall({ number, stage, theme, zFront }) {
     s.popupX[i] = s.hitX + (Math.random() - 0.5) * 1.5
     s.popupSide[i] = s.side
     const label = ensureLabels()[i]
-    label.draw({ lines: [{ text: `-${formatNumber(damage)}`, icon: 'sword', fill: ['#ffffff', '#ffb347'] }] })
+    label.draw({ lines: [{ text: `-${formatNumber(damage)}`, icon: 'ammo', fill: ['#ffffff', '#ffb347'] }] })
     const mesh = popups.current[i]
     if (mesh && mesh.material.map !== label.texture) {
       mesh.material.map = label.texture
@@ -220,19 +223,19 @@ export function StageWall({ number, stage, theme, zFront }) {
     if (s.broken && !isBroken) s.hp = maxHp
     s.broken = isBroken
 
-    // A fresh swing within reach: queue the impact, on whichever side the player is.
-    if (!s.broken && near && game.swingAt > s.seenSwing && now - game.swingAt < 0.2) {
-      s.seenSwing = game.swingAt
-      s.impactAt = game.swingAt + HIT_DELAY_S
-      const at = game.swingPos
+    // A fresh shot within range: queue the impact, on whichever side the player is.
+    if (!s.broken && near && game.shotAt > s.seenSwing && now - game.shotAt < 0.2) {
+      s.seenSwing = game.shotAt
+      s.impactAt = game.shotAt + HIT_DELAY_S
+      const at = game.shotPos
       s.side = at && at[2] < zFront + WALL_Z ? -1 : 1
-      s.hitX = at ? Math.max(-OPEN_HALF + 1.5, Math.min(OPEN_HALF - 1.5, at[0])) : 0
+      s.hitX = at ? Math.max(-OPEN_HALF + 1.5, Math.min(OPEN_HALF - 1.5, at[0] - x)) : 0
     }
 
     if (s.impactAt && now >= s.impactAt) {
       s.impactAt = 0
       if (!s.broken) {
-        const damage = game.power
+        const damage = game.ammo
         s.hp -= damage
         s.hitAt = now
         spawnDebris(s, now, 6, false)
@@ -247,7 +250,7 @@ export function StageWall({ number, stage, theme, zFront }) {
           playSound('wallHit', { strength: Math.min(1, (damage / maxHp) * 4) })
           if (damage < maxHp * WEAK_HIT && now - s.warnedAt > 2) {
             s.warnedAt = now
-            game.notify(`Wall ${number} is too strong! Get about ${formatNumber(Math.ceil(maxHp * WEAK_HIT))} Power`, 'error')
+            game.notify(`${space ? 'Space wall' : 'Wall'} ${shown} is too strong! Get about ${formatNumber(Math.ceil(maxHp * WEAK_HIT))} Ammo`, 'error')
           }
         }
       }
@@ -333,8 +336,8 @@ export function StageWall({ number, stage, theme, zFront }) {
     if (game.brokenWalls[number]) return
     game.setNearWall(number, zFront + WALL_Z)
     // Only until it's been broken once; after that the player knows what to do.
-    if (!fx.current.broken && game.bestWall < number) {
-      game.notify(`Wall ${number} - ${formatNumber(maxHp)} HP. Click to hit it with your sword!`)
+    if (!fx.current.broken && (space ? game.spaceBest < shown : game.bestWall < number)) {
+      game.notify(`${space ? 'Space wall' : 'Wall'} ${shown} - ${formatNumber(maxHp)} HP. Click to shoot it!`)
     }
   }
   const onFar = ({ other }) => {
@@ -342,7 +345,7 @@ export function StageWall({ number, stage, theme, zFront }) {
   }
 
   return (
-    <group position={[0, 0, zFront]}>
+    <group position={[x, 0, zFront]}>
       <group ref={slab} visible={!broken}>
         <mesh position={[0, OPEN_H / 2, WALL_Z]} castShadow receiveShadow>
           <boxGeometry args={[WIDTH, OPEN_H, DEPTH]} />

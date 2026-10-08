@@ -1,18 +1,23 @@
 import { BUX_EGGS, WINS_EGGS } from '../eggs'
-import { BUX_SWORDS, WINS_SWORDS } from '../swords'
-import { BUX_TRAINERS, WINS_TRAINERS } from '../trainers'
-import { WALLS_PER_STAGE, wallStage, WIN_PADS } from '../walls'
+import { BUX_GUNS, SPACE_GUNS, WINS_GUNS } from '../guns'
+import { BOSS_REBIRTHS, SPACE_REBIRTHS } from '../progression'
+import { BUX_TRAINERS, SPACE_TRAINERS, WINS_TRAINERS } from '../trainers'
+import { SPACE_WALL_BASE, SPACE_WALLS, WALLS_PER_STAGE, wallStage, WIN_PADS } from '../walls'
 import { mulberry32 } from './textures'
 import {
+  BOSS_CENTER,
+  BOSS_SPAWN,
   cabinEnd,
   cabinStart,
   CORRIDOR_HALF,
+  DIVIDER_T,
   END_Z,
   GATE_Z,
   LOBBY_HALF,
   OPEN_H,
   OPEN_HALF,
   RING,
+  SPACE_SPAWN,
   SPAWN,
   STAGE_COUNT,
   STAGE_LEN,
@@ -26,7 +31,7 @@ import {
 } from './themes'
 
 /**
- * The look of the three Bux platforms - one in the sword zone, one in the egg zone,
+ * The look of the three Bux platforms - one in the gun zone, one in the egg zone,
  * one in the training zone. Purple plinth, gold deck, neon lip: nothing else in the
  * lobby is coloured like this, which is the point. Items bought with Wins stand in
  * the zone's own rows; items bought with Bux stand up here, well clear of them.
@@ -79,9 +84,13 @@ export function buildLayout() {
   /** Rectangles `{ x0, x1, z0, z1, y }` with a ceiling over them (see Roofs). */
   const roofs = []
 
-  /** Win pads in the corners in front of a wall face at `zFront`, paying out for wall `number`. */
-  const addPads = (number, zFront) => {
-    for (const pad of WIN_PADS) winPads.push({ number, pad, position: [pad.side * 9.9, 0, zFront + 2] })
+  /**
+   * Win pads in the corners in front of a wall face at `zFront`, paying out for wall
+   * `number`. `x` shifts them for Space World's corridor, and `home` is where they
+   * send you once paid.
+   */
+  const addPads = (number, zFront, x = 0, home = SPAWN) => {
+    for (const pad of WIN_PADS) winPads.push({ number, pad, position: [x + pad.side * 9.9, 0, zFront + 2], home })
   }
   /** Stage wall `number` with its front face at `zFront`. */
   const addWall = (number, zFront) => {
@@ -89,10 +98,10 @@ export function buildLayout() {
     walls.push({ number, stage, theme: THEMES[stage - 1], zFront })
   }
   /** Dark frame across a stage corridor centred on `z`, around the doorway a wall fills. */
-  const divider = (z) => {
-    box(-CORRIDOR_HALF, -1, z - 1, -OPEN_HALF, WALL_H, z + 1, 'dark')
-    box(OPEN_HALF, -1, z - 1, CORRIDOR_HALF, WALL_H, z + 1, 'dark')
-    box(-OPEN_HALF, OPEN_H, z - 1, OPEN_HALF, WALL_H, z + 1, 'dark')
+  const divider = (z, x = 0) => {
+    box(x - CORRIDOR_HALF, -1, z - 1, x - OPEN_HALF, WALL_H, z + 1, 'dark')
+    box(x + OPEN_HALF, -1, z - 1, x + CORRIDOR_HALF, WALL_H, z + 1, 'dark')
+    box(x - OPEN_HALF, OPEN_H, z - 1, x + OPEN_HALF, WALL_H, z + 1, 'dark')
   }
   /** The two small rooms opening off either side of a cabin, centred on `vipZ`. */
   const sideRooms = (vipZ) => {
@@ -156,8 +165,8 @@ export function buildLayout() {
    */
   const vipPlatform = (cx, cz, halfX, halfZ, title, sign = {}) => {
     // Where the banner hangs along the back edge. It defaults to the middle, which
-    // is right for the blades - they are thin enough to read through. An egg or a
-    // training dummy is not: parked in the middle they sit square in front of the
+    // is right for the guns - they float low enough to pass under it. An egg or a
+    // target is not: parked in the middle they sit square in front of the
     // text, and their own floating name boards land on it too. Those platforms give
     // the banner its own lane to one side instead.
     const signCx = sign.cx ?? cx
@@ -198,7 +207,7 @@ export function buildLayout() {
   }
 
   // --- Lobby ground ---------------------------------------------------------------
-  // Grass everywhere, with tan walkways and three themed zones laid on top: swords on
+  // Grass everywhere, with tan walkways and three themed zones laid on top: guns on
   // the west side, training (north) and eggs (south) on the east. Paths and zone
   // floors are visual only, a hair above the grass, so there is nothing to trip on.
   const L = LOBBY_HALF
@@ -299,10 +308,10 @@ export function buildLayout() {
   // grass verge (with the lamp posts) away from the avenue.
   const ZONE_IN = AVENUE + 2
   const ZONES = {
-    swords: {
+    guns: {
       x0: -L + 1, x1: -ZONE_IN, z0: GATE_Z + FORECOURT, z1: PLAZA_Z - 2,
       floor: 'floor:#9cc2ff,#86b1f7', rail: 'floor:#3d7be8,#3d7be8', post: 'floor:#23479a,#23479a',
-      board: 'floor:#3d7be8,#2f68d0', neon: '#6fb8ff', title: 'SWORDS', fill: ['#ffffff', '#cfe6ff'],
+      board: 'floor:#3d7be8,#2f68d0', neon: '#6fb8ff', title: 'GUNS', fill: ['#ffffff', '#cfe6ff'],
     },
     train: {
       x0: ZONE_IN, x1: L - 1, z0: CROSS1 + 2, z1: PLAZA_Z - 2,
@@ -335,7 +344,7 @@ export function buildLayout() {
     box(x0, 0, z0, x1, 0.06, z1, zone.floor, false)
 
     // The arch faces the avenue; the side walls of the lobby need no fence.
-    const west = name === 'swords'
+    const west = name === 'guns'
     const inner = west ? x1 : x0
     const c = midZ(zone) + (zone.gate ?? 0)
     fence('z', inner, z0, z1, [[c - ENTRANCE / 2 - 0.8, c + ENTRANCE / 2 + 0.8]], zone.rail, zone.post)
@@ -347,45 +356,45 @@ export function buildLayout() {
     fence('x', z0, x0, x1, southGaps, zone.rail, zone.post)
   }
 
-  // --- Sword zone ------------------------------------------------------------------
-  // Two staggered rows along the west wall: the first ten on the ground, the bigger,
-  // pricier ones on a ledge behind, half a step along so each sign shows through a
-  // gap. A giant sword statue stands in the middle of the zone.
-  const SWORD_Z = midZ(ZONES.swords)
-  const SWORD_STEP = 3.9
+  // --- Gun zone --------------------------------------------------------------------
+  // Two staggered rows along the west wall: the first thirteen on the ground, the
+  // bigger, pricier ones on a ledge behind, half a step along so each sign shows
+  // through a gap. A giant gun turns over a rock in the middle of the zone.
+  const GUN_Z = midZ(ZONES.guns)
+  const GUN_STEP = 3.9
   // 13 on the ground and the rest on the ledge. This is as many as the zone holds:
   // one more in the front row and its bottom pad pushes through the south fence.
   const FRONT_COUNT = 13
   const LEDGE_H = 1.2
-  const rowHalf = ((FRONT_COUNT - 1) * SWORD_STEP) / 2
-  const frontStart = SWORD_Z + rowHalf
-  const swordPads = WINS_SWORDS.map((sword, i) => {
+  const rowHalf = ((FRONT_COUNT - 1) * GUN_STEP) / 2
+  const frontStart = GUN_Z + rowHalf
+  const gunPads = WINS_GUNS.map((gun, i) => {
     const back = i >= FRONT_COUNT
     const slot = back ? i - FRONT_COUNT : i
     return {
-      sword,
+      gun,
       position: back
-        ? [-(L - 2.4), LEDGE_H, frontStart - SWORD_STEP / 2 - slot * SWORD_STEP]
-        : [-(L - 6.8), 0, frontStart - slot * SWORD_STEP],
+        ? [-(L - 2.4), LEDGE_H, frontStart - GUN_STEP / 2 - slot * GUN_STEP]
+        : [-(L - 6.8), 0, frontStart - slot * GUN_STEP],
     }
   })
   // The ledge is one easy jump high, and runs the length of the back row rather than
   // the front one - the two rows are different lengths, and sizing it off the front
   // row left the last few back-row pads hanging over the end.
-  const backTop = frontStart - SWORD_STEP / 2
-  const backBottom = backTop - (WINS_SWORDS.length - FRONT_COUNT - 1) * SWORD_STEP
+  const backTop = frontStart - GUN_STEP / 2
+  const backBottom = backTop - (WINS_GUNS.length - FRONT_COUNT - 1) * GUN_STEP
   hill(-L, backBottom - 2.5, -(L - 4.4), backTop + 2.5, LEDGE_H)
 
-  // Between the zone's entrance and the front row of swords.
+  // Between the zone's entrance and the front row of guns.
   const STATUE_X = -18.5
-  box(STATUE_X - 2, 0, SWORD_Z - 2, STATUE_X + 2, 1.2, SWORD_Z + 2, 'portalStone')
-  box(STATUE_X - 1.2, 1.2, SWORD_Z - 1.2, STATUE_X + 1.2, 1.8, SWORD_Z + 1.2, 'portalStone')
-  const statue = { position: [STATUE_X, 1.8, SWORD_Z], swordId: 'diamond' }
+  box(STATUE_X - 2, 0, GUN_Z - 2, STATUE_X + 2, 1.2, GUN_Z + 2, 'portalStone')
+  box(STATUE_X - 1.2, 1.2, GUN_Z - 1.2, STATUE_X + 1.2, 1.8, GUN_Z + 1.2, 'portalStone')
+  const statue = { position: [STATUE_X, 1.8, GUN_Z], gunId: 'divine' }
   for (const [dx, dz] of [[-2.6, 1.8], [2.4, -2.2], [1.8, 2.6]]) {
-    crystals.push({ position: [STATUE_X + dx, 0, SWORD_Z + dz], color: '#7fdcff', scale: 0.8 })
+    crystals.push({ position: [STATUE_X + dx, 0, GUN_Z + dz], color: '#7fdcff', scale: 0.8 })
   }
 
-  // The two Bux blades, on their own platform at the south end of the zone - past
+  // The two Bux guns, on their own platform at the south end of the zone - past
   // the bottom of both shop rows, so there is no mistaking them for part of the
   // ladder.
   //
@@ -393,12 +402,12 @@ export function buildLayout() {
   // first cut was 13 wide and left half a unit between its edge and the front row's
   // pads, which is narrower than the player - you could not walk down your own shop.
   // Now there is a 3.5 lane on the row side and 3 on the fence side.
-  const SWORD_VIP = [-17.5, -23]
-  const SWORD_VIP_SPREAD = 2.4
-  const swordVipY = vipPlatform(SWORD_VIP[0], SWORD_VIP[1], 4.5, 4.5, 'VIP BLADES')
-  BUX_SWORDS.forEach((sword, i) => {
-    const dx = i === 0 ? -SWORD_VIP_SPREAD : SWORD_VIP_SPREAD
-    swordPads.push({ sword, position: [SWORD_VIP[0] + dx, swordVipY, SWORD_VIP[1]] })
+  const GUN_VIP = [-17.5, -23]
+  const GUN_VIP_SPREAD = 2.4
+  const gunVipY = vipPlatform(GUN_VIP[0], GUN_VIP[1], 4.5, 4.5, 'VIP GUNS')
+  BUX_GUNS.forEach((gun, i) => {
+    const dx = i === 0 ? -GUN_VIP_SPREAD : GUN_VIP_SPREAD
+    gunPads.push({ gun, position: [GUN_VIP[0] + dx, gunVipY, GUN_VIP[1]] })
   })
 
   // --- Training zone ---------------------------------------------------------------
@@ -522,8 +531,8 @@ export function buildLayout() {
   const WALL_FACE = L - 0.6
   // [offset from the zone centre, is the big middle board]
   for (const [dz, big] of [[12, false], [0, true], [-12, false]]) {
-    sideBillboard(-WALL_FACE, 1, SWORD_Z + dz, big ? 9.2 : 8.4, big ? 11 : 9, big ? 4 : 3.5,
-      ZONES.swords.board, 'SWORDS', ZONES.swords.fill)
+    sideBillboard(-WALL_FACE, 1, GUN_Z + dz, big ? 9.2 : 8.4, big ? 11 : 9, big ? 4 : 3.5,
+      ZONES.guns.board, 'GUNS', ZONES.guns.fill)
   }
   for (const dz of [5, -5]) {
     sideBillboard(WALL_FACE, -1, TRAIN_Z + dz, 7.6, 8, 3.4, ZONES.train.board, 'TRAIN', ZONES.train.fill)
@@ -778,14 +787,245 @@ export function buildLayout() {
     lines: [
       { text: 'WELCOME!', scale: 1.5, fill: ['#fff6a8', '#ffc21a'] },
       'WASD run  -  Shift sprint  -  Space jump',
-      `Break ${WALLS_PER_STAGE} walls with your sword to enter a stage`,
+      `Click to shoot! Break ${WALLS_PER_STAGE} walls to clear a stage`,
       'Hold E on a Win pad to cash in',
+      { text: `Rebirth ${BOSS_REBIRTHS}: Boss  -  Rebirth ${SPACE_REBIRTHS}: Space World`, fill: '#ffd0d0' },
       { text: 'Purple portal = Infinity Cave, open any time', fill: '#e2b8ff' },
     ],
     position: [16, 5.6, L - 3.04],
     rotationY: Math.PI,
-    size: [11.4, 5.6],
+    size: [11.4, 5.9],
     style: { bg: '#6b4424', border: '#4a2c14' },
+  })
+
+  // --- Leaderboards, east of the welcome board -------------------------------------
+  // Three boards on one frame, the same height as the welcome board and built the
+  // same way: posts and a backing beam behind, so nothing fights with their faces.
+  box(23.2, 0, L - 2.4, 23.8, 9.6, L - 1.8, 'trunk')
+  box(32.4, 0, L - 2.4, 33, 9.6, L - 1.8, 'trunk')
+  box(22.6, 2.4, L - 3, 33.4, 8.8, L - 2.4, 'trunk')
+  labels.push({
+    lines: [{ text: 'LEADERBOARDS', fill: ['#fff6a8', '#ffc21a'] }],
+    position: [28, 9.45, L - 3.04],
+    rotationY: Math.PI,
+    size: [7, 1.1],
+    style: { bg: '#6b4424', border: '#4a2c14' },
+  })
+  const leaderboards = { center: [28, 5.6, L - 3.04], rotationY: Math.PI, width: 3.4, height: 3.4 * (900 / 512), gap: 0.15 }
+
+  // --- Boss and Space World portals ----------------------------------------------
+  // Side by side on the north plaza, west of the cave's, facing the gate - the same
+  // walk from the spawn as the cave. Each refuses anyone short of its rebirths and
+  // says how many more it wants.
+  const BOSS_PORTAL_X = -13
+  const SPACE_PORTAL_X = -26
+  arch(BOSS_PORTAL_X, L - 3, 'z')
+  arch(SPACE_PORTAL_X, L - 3, 'z')
+  portals.push({
+    position: [BOSS_PORTAL_X, 0, L - 3],
+    rotationY: Math.PI,
+    target: BOSS_SPAWN,
+    requiresRebirths: BOSS_REBIRTHS,
+    name: 'The Boss Arena',
+    color: '#ff4a4a',
+  })
+  portals.push({
+    position: [SPACE_PORTAL_X, 0, L - 3],
+    rotationY: Math.PI,
+    target: SPACE_SPAWN,
+    requiresRebirths: SPACE_REBIRTHS,
+    name: 'Space World',
+    color: '#4fd8ff',
+  })
+  for (const [x, title, fill, need] of [
+    [BOSS_PORTAL_X, 'BOSS FIGHT', ['#ffffff', '#ff6a6a'], BOSS_REBIRTHS],
+    [SPACE_PORTAL_X, 'SPACE WORLD', ['#ffffff', '#ff7af5'], SPACE_REBIRTHS],
+  ]) {
+    labels.push({
+      lines: [
+        { text: title, scale: 1.2, fill },
+        { text: `Rebirth ${need}`, scale: 0.85, fill: ['#ff9a9a', '#ff3030'] },
+      ],
+      position: [x, 9.9, L - 4.05],
+      rotationY: Math.PI,
+      size: [9, 2.6],
+      style: {},
+    })
+  }
+
+  // --- The Boss Arena -------------------------------------------------------------
+  // A walled pit far to the north, open to the sky, with the boss at the south end
+  // and the way home at the north. You only arrive by portal.
+  const ARENA_Z = BOSS_CENTER[2]
+  const ARENA_HALF = 24
+  const ARENA_H = 14
+  const ab = (x0, y0, z0, x1, y1, z1, m, c) => box(x0, y0, ARENA_Z + z0, x1, y1, ARENA_Z + z1, m, c)
+  ab(-ARENA_HALF, -1, -ARENA_HALF, ARENA_HALF, 0, ARENA_HALF, 'floor:#5a3a3a,#4a2e30')
+  for (const [x0, z0, x1, z1] of [
+    [-ARENA_HALF - 2, -ARENA_HALF - 2, ARENA_HALF + 2, -ARENA_HALF],
+    [-ARENA_HALF - 2, ARENA_HALF, ARENA_HALF + 2, ARENA_HALF + 2],
+    [-ARENA_HALF - 2, -ARENA_HALF, -ARENA_HALF, ARENA_HALF],
+    [ARENA_HALF, -ARENA_HALF, ARENA_HALF + 2, ARENA_HALF],
+  ]) {
+    ab(x0, -1, z0, x1, ARENA_H, z1, 'panel:#3a2030')
+  }
+  // Neon round the foot and the top of the walls, and a ring of pillars.
+  for (const [x0, z0, x1, z1] of [
+    [-ARENA_HALF, -ARENA_HALF, ARENA_HALF, -ARENA_HALF + 0.12],
+    [-ARENA_HALF, ARENA_HALF - 0.12, ARENA_HALF, ARENA_HALF],
+    [-ARENA_HALF, -ARENA_HALF, -ARENA_HALF + 0.12, ARENA_HALF],
+    [ARENA_HALF - 0.12, -ARENA_HALF, ARENA_HALF, ARENA_HALF],
+  ]) {
+    ab(x0, 0, z0, x1, 0.25, z1, 'neon:#ff3b3b', false)
+    ab(x0, ARENA_H - 0.6, z0, x1, ARENA_H - 0.4, z1, 'neon:#ff3b3b', false)
+  }
+  for (const [px, pz] of [[-16, -16], [16, -16], [-16, 8], [16, 8]]) {
+    ab(px - 1, 0, pz - 1, px + 1, 7, pz + 1, 'portalStone')
+    ab(px - 1.3, 7, pz - 1.3, px + 1.3, 7.5, pz + 1.3, 'neon:#ff6a3a', false)
+  }
+  // The boss's plinth.
+  ab(-7, 0, -18, 7, 0.6, -6, 'panel:#2a1420')
+  ab(-7, 0.6, -18, 7, 0.75, -17.8, 'neon:#ff3b3b', false)
+  // The way home stands against the east wall, facing in, rather than behind the
+  // arrival point: there, the camera would start the fight looking through it.
+  const homeX = ARENA_HALF - 2
+  const homeZ = ARENA_Z + 10
+  arch(homeX, homeZ, 'x')
+  portals.push({ position: [homeX, 0, homeZ], rotationY: -Math.PI / 2, target: SPAWN })
+  labels.push({
+    lines: ['MAGIC DOOR - BACK TO LOBBY'],
+    position: [homeX - 1.05, 8.2, homeZ],
+    rotationY: -Math.PI / 2,
+    size: [9.6, 1],
+    style: { fill: ['#f3dcff', '#c07bff'] },
+  })
+  for (const side of [-1, 1]) {
+    labels.push({
+      lines: [
+        { text: 'BOSS ARENA', scale: 1.3, fill: ['#ffffff', '#ff6a6a'] },
+        { text: 'Shoot the boss before the clock runs out!', scale: 0.55, fill: '#ffd0d0' },
+      ],
+      position: [side * (ARENA_HALF - 0.05), 9, ARENA_Z - 6],
+      rotationY: -side * (Math.PI / 2),
+      size: [14, 2.8],
+      style: { bg: '#2a1018', border: '#ff4a4a' },
+    })
+  }
+
+  // --- Space World ----------------------------------------------------------------
+  // Its own small hub with its own gun shop and targets, and a corridor of ten walls
+  // behind a gate, laid out like the lobby's first stage but four hundred metres
+  // west. The hub reaches as far south as the lobby does, so the same "back in a
+  // lobby" line (see World.jsx's WallReset) rebuilds its walls too.
+  const SX = SPACE_SPAWN[0]
+  const HUB_HALF = 30
+  const HUB_N = 30
+  const sb = (x0, y0, z0, x1, y1, z1, m, c) => box(SX + x0, y0, z0, SX + x1, y1, z1, m, c)
+  const spaceTheme = {
+    name: 'Space',
+    wall: { style: 'crystal', palette: ['#3a2a8a', '#4b3cff', '#2a1f6a', '#6a54c8'], gap: '#7ff9ff', glow: 0.55 },
+    side: '#2a2050',
+    neon: '#7ff9ff',
+    floor: ['#3a3460', '#302a52'],
+  }
+  sb(-HUB_HALF, -1, STAGE_START, HUB_HALF, 0, HUB_N, 'floor:#3a3460,#2c2650')
+  sb(-HUB_HALF - 2, -1, HUB_N, HUB_HALF + 2, 16, HUB_N + 2, 'panel:#2a2050')
+  sb(-HUB_HALF - 2, -1, GATE_Z, -HUB_HALF, 16, HUB_N, 'panel:#2a2050')
+  sb(HUB_HALF, -1, GATE_Z, HUB_HALF + 2, 16, HUB_N, 'panel:#2a2050')
+  // The south wall, with the gate tower in the middle of it.
+  sb(-HUB_HALF - 2, -1, STAGE_START, -CORRIDOR_HALF - WALL_T, 16, GATE_Z, 'panel:#2a2050')
+  sb(CORRIDOR_HALF + WALL_T, -1, STAGE_START, HUB_HALF + 2, 16, GATE_Z, 'panel:#2a2050')
+  sb(-gateHalf, -1, STAGE_START, -OPEN_HALF, 16, GATE_Z, 'dark')
+  sb(OPEN_HALF, -1, STAGE_START, gateHalf, 16, GATE_Z, 'dark')
+  sb(-OPEN_HALF, OPEN_H, STAGE_START, OPEN_HALF, 16, GATE_Z, 'dark')
+  for (const [x0, z0, x1, z1] of [
+    [-HUB_HALF, HUB_N - 0.12, HUB_HALF, HUB_N],
+    [-HUB_HALF, GATE_Z, -HUB_HALF + 0.12, HUB_N],
+    [HUB_HALF - 0.12, GATE_Z, HUB_HALF, HUB_N],
+  ]) {
+    sb(x0, 0, z0, x1, 0.25, z1, 'neon:#7ff9ff', false)
+    sb(x0, 15.4, z0, x1, 15.6, z1, 'neon:#c07bff', false)
+  }
+  roofs.push({ x0: SX - HUB_HALF - 2, x1: SX + HUB_HALF + 2, z0: GATE_Z, z1: HUB_N + 2, y: 15.99 })
+  labels.push({
+    lines: [
+      { text: 'SPACE WORLD', scale: 1.4, fill: ['#ffffff', '#ff7af5'] },
+      { text: `Break the ${SPACE_WALLS} space walls - the Win pads pay huge!`, scale: 0.55, fill: '#bfe9ff' },
+    ],
+    position: [SX, 12.4, GATE_Z + 0.12],
+    size: [16, 3],
+    style: {},
+  })
+
+  // Space guns down the west side, space targets down the east.
+  SPACE_GUNS.forEach((gun, i) => {
+    gunPads.push({ gun, position: [SX - HUB_HALF + 8, 0, 14 - i * 8] })
+  })
+  SPACE_TRAINERS.forEach((trainer, i) => {
+    trainerPads.push({
+      trainer,
+      position: [SX + HUB_HALF - 8, 0, 14 - i * 8],
+      rotationY: -Math.PI / 2,
+      labelY: 5.2,
+    })
+  })
+  for (const [x, text, fill] of [
+    [SX - HUB_HALF + 0.06, 'SPACE GUNS', ['#ffffff', '#ffd27a']],
+    [SX + HUB_HALF - 0.06, 'SPACE TARGETS', ['#ffffff', '#7ff9ff']],
+  ]) {
+    const east = x > SX
+    labels.push({
+      lines: [text],
+      position: [x, 11, 2],
+      rotationY: east ? -Math.PI / 2 : Math.PI / 2,
+      size: [14, 2],
+      style: { fill },
+    })
+  }
+  for (const [dx, dz] of [[-12, 24], [12, 24], [-4, -14], [6, -20]]) {
+    crystals.push({ position: [SX + dx, 0, dz], color: '#7ff9ff', scale: 1.1 })
+  }
+
+  // The way home, behind the spawn.
+  arch(SX, HUB_N - 3, 'z')
+  portals.push({ position: [SX, 0, HUB_N - 3], rotationY: Math.PI, target: SPAWN })
+  labels.push({
+    lines: ['MAGIC DOOR - BACK TO LOBBY'],
+    position: [SX, 8.2, HUB_N - 4.05],
+    rotationY: Math.PI,
+    size: [9.6, 1],
+    style: { fill: ['#f3dcff', '#c07bff'] },
+  })
+
+  // The corridor: a gate holding the first wall, nine more behind it, then a cabin
+  // with the Win pads and a closed end.
+  const spaceWall = (number, zFront) => walls.push({ number, stage: 101, theme: spaceTheme, zFront, x: SX })
+  spaceWall(SPACE_WALL_BASE + 1, GATE_Z)
+  const tunnelEnd = STAGE_START - TUNNEL_LEAD - (SPACE_WALLS - 2) * WALL_GAP - DIVIDER_T
+  const spaceEnd = tunnelEnd - 30
+  sb(-CORRIDOR_HALF, -1, spaceEnd, CORRIDOR_HALF, 0, STAGE_START, `floor:${spaceTheme.floor.join(',')}`)
+  for (const side of [-1, 1]) {
+    const xin = side * CORRIDOR_HALF
+    const xout = side * (CORRIDOR_HALF + WALL_T)
+    const [xa, xb] = side < 0 ? [xout, xin] : [xin, xout]
+    const [na, nb] = side < 0 ? [xin, xin + 0.12] : [xin - 0.12, xin]
+    sb(xa, -1, spaceEnd, xb, WALL_H, STAGE_START, `panel:${spaceTheme.side}`)
+    sb(na, 0, spaceEnd, nb, 0.25, STAGE_START, `neon:${spaceTheme.neon}`, false)
+    sb(na, WALL_H - 0.6, spaceEnd, nb, WALL_H - 0.4, STAGE_START, `neon:${spaceTheme.neon}`, false)
+  }
+  roofs.push({ x0: SX - CORRIDOR_HALF, x1: SX + CORRIDOR_HALF, z0: spaceEnd, z1: STAGE_START, y: WALL_H - 0.01 })
+  for (let j = 1; j < SPACE_WALLS; j++) {
+    const front = STAGE_START - TUNNEL_LEAD - (j - 1) * WALL_GAP
+    divider(front - 1, SX)
+    spaceWall(SPACE_WALL_BASE + 1 + j, front)
+  }
+  sb(-CORRIDOR_HALF - WALL_T, -1, spaceEnd - 2, CORRIDOR_HALF + WALL_T, WALL_H, spaceEnd, 'dark')
+  addPads(SPACE_WALL_BASE + SPACE_WALLS + 1, spaceEnd, SX, SPACE_SPAWN)
+  labels.push({
+    lines: ['MORE PLANETS', 'COMING SOON'],
+    position: [SX, 9.6, spaceEnd + 0.05],
+    size: [14, 3],
+    style: { fill: ['#ffffff', '#bfe9ff'] },
   })
 
   return {
@@ -795,11 +1035,14 @@ export function buildLayout() {
     roofs,
     portals,
     cave: { position: caveWallPosition },
+    boss: { position: BOSS_CENTER, arenaHalf: ARENA_HALF },
+    leaderboards,
+    space: { center: [SX, 0, 0], hubHalf: HUB_HALF, north: HUB_N },
     pads,
     crowns,
     crystals,
     labels,
-    swordPads,
+    gunPads,
     trainerPads,
     eggStands,
     statue,

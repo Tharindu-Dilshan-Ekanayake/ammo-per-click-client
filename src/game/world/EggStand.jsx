@@ -4,6 +4,7 @@ import { CuboidCollider, RigidBody } from '@react-three/rapier'
 import { useRef } from 'react'
 import { AdditiveBlending, BoxGeometry } from 'three'
 
+import { useBuxPrice } from '../../bloxity/prices'
 import { formatBonus, formatNumber } from '../format'
 import { useGame } from '../gameStore'
 import { getPet } from '../pets'
@@ -85,6 +86,7 @@ function EggModel({ egg }) {
  * @param {{ egg: object, position: number[] }} props
  */
 export function EggStand({ egg, position }) {
+  const bux = useBuxPrice(egg)
   const eggRef = useRef(null)
   const aura = useRef(null)
   const petRef = useRef(null)
@@ -180,7 +182,7 @@ export function EggStand({ egg, position }) {
                 ? [
                     { text: 'VIP', scale: 0.75, fill: GEM },
                     { text: egg.name, scale: 1.2 },
-                    { text: `${egg.bux} Bux`, icon: 'bux', fill: GEM },
+                    { text: `${bux} Bux`, icon: 'bux', fill: GEM },
                     { text: `Pet: x${formatBonus(pet.winsBonus)} Wins`, scale: 0.85, fill: '#9ff5c0' },
                   ]
                 : [
@@ -223,7 +225,7 @@ export function EggStand({ egg, position }) {
             title={egg.name}
             detail={
               egg.bux
-                ? `💎 ${egg.bux} Bux  ·  pet x${formatBonus(pet.winsBonus)} Wins`
+                ? `💎 ${bux} Bux  ·  pet x${formatBonus(pet.winsBonus)} Wins`
                 : `🏆 ${formatNumber(egg.cost)} Wins  ·  pet x${formatBonus(pet.winsBonus)}`
             }
           />

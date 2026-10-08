@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 
+import { ALL_SKUS } from '../game/catalog'
+import { startCloudSave } from '../game/cloudSave'
 import { BloxityContext } from './BloxityContext'
 import { clearBalance, refreshBalance } from './bux'
+import { loadPrices } from './prices'
 import { applyPortalSettings, listenToPortalSettings } from './portalSettings'
 import { getSDK, safeCall, toUnsubscribe, waitForSDK } from './sdk'
 import { DEFAULT_PROPORTIONS, useBloxityStore } from './store'
@@ -169,6 +172,11 @@ export function BloxityProvider({ gameSlug, children }) {
             }),
           ),
         )
+
+        // The signs show the admin panel's prices, not the ones written in the code.
+        loadPrices(slug, ALL_SKUS)
+        // Signed in, progress lives on the game server too (see game/cloudSave.js).
+        startCloudSave()
 
         // Seed anything the subscriptions didn't fire synchronously.
         const s = useBloxityStore.getState()

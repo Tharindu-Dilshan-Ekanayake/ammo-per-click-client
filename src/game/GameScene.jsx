@@ -8,11 +8,13 @@ import FollowCamera from './FollowCamera'
 import { useLoading } from './loadingStore'
 import NetSync from './NetSync'
 import PetCompanion from './PetCompanion'
+import Footprints from './Footprints'
 import Player from './Player'
 import RemotePlayers from './RemotePlayers'
 import { qualityOf, useSettings } from './settings'
-import SwingInput from './SwingInput'
-import { SPAWN } from './world/themes'
+import ShootInput from './ShootInput'
+import ShotEffects from './ShotEffects'
+import { BOSS_SPAWN, SPACE_SPAWN, SPAWN } from './world/themes'
 import World, { SunLight } from './world/World'
 
 /**
@@ -69,12 +71,12 @@ function WorldReady() {
  */
 function LocalEnvironment() {
   return (
-    <Environment resolution={64} frames={1} environmentIntensity={0.35}>
+    <Environment resolution={64} frames={1} environmentIntensity={0.16}>
       <color attach="background" args={['#9fc6e8']} />
-      <Lightformer form="rect" intensity={2} position={[0, 10, 0]} rotation-x={Math.PI / 2} scale={[20, 20, 1]} />
+      <Lightformer form="rect" intensity={1.4} position={[0, 10, 0]} rotation-x={Math.PI / 2} scale={[20, 20, 1]} />
       <Lightformer
         form="rect"
-        intensity={1}
+        intensity={0.6}
         color="#ffe9c4"
         position={[10, 3, 0]}
         rotation-y={-Math.PI / 2}
@@ -82,7 +84,7 @@ function LocalEnvironment() {
       />
       <Lightformer
         form="rect"
-        intensity={0.6}
+        intensity={0.35}
         color="#bfe0ff"
         position={[-10, 3, 0]}
         rotation-y={Math.PI / 2}
@@ -92,9 +94,21 @@ function LocalEnvironment() {
   )
 }
 
-export function GameScene() {
+/**
+ * Development only: `?at=boss` or `?at=space` starts you in the Boss Arena or Space
+ * World, so either can be checked without rebirthing first. Production builds
+ * always start in the lobby.
+ */
+const START = (() => {
+  if (!import.meta.env.DEV) return SPAWN
+  const at = new URLSearchParams(location.search).get('at')
+  return { boss: BOSS_SPAWN, space: SPACE_SPAWN }[at] ?? SPAWN
+})()
+
+export function GameScene({ bodyRef: externalBodyRef }) {
   const { game } = useBloxity()
-  const playerBodyRef = useRef(null)
+  const localPlayerBodyRef = useRef(null)
+  const playerBodyRef = externalBodyRef ?? localPlayerBodyRef
   // The eased stand-in for the body, which is what anything on screen follows.
   // See game/playerAnchor.js for why the two are not the same thing.
   const playerAnchorRef = useRef(null)
@@ -163,7 +177,7 @@ export function GameScene() {
     >
       <ShadowToggle enabled={shadows} />
       <fog attach="fog" args={['#cfeaff', 140, 420]} />
-      <hemisphereLight args={['#d6ecff', '#6b8f5a', 0.7]} />
+      <hemisphereLight args={['#d6ecff', '#6b8f5a', 0.42]} />
       <SunLight bodyRef={playerBodyRef} anchorRef={playerAnchorRef} />
 
       <LocalEnvironment />
@@ -178,9 +192,10 @@ export function GameScene() {
           <Player
             bodyRef={playerBodyRef}
             anchorRef={playerAnchorRef}
-            position={SPAWN}
+            position={START}
             onAvatarReady={handleAvatarReady}
           />
+          <Footprints />
           <PetCompanion bodyRef={playerBodyRef} anchorRef={playerAnchorRef} />
           {/* The other players in our lobby, and sending ours (after each physics step). */}
           <RemotePlayers />
@@ -188,10 +203,11 @@ export function GameScene() {
           {/* Inside Physics: the camera raycasts against the world so it can't be
               pushed through a stage wall. It no-ops until the player body exists. */}
           <FollowCamera bodyRef={playerBodyRef} anchorRef={playerAnchorRef} />
+          <ShotEffects bodyRef={playerBodyRef} anchorRef={playerAnchorRef} />
         </Physics>
       </Suspense>
 
-      <SwingInput bodyRef={playerBodyRef} />
+      <ShootInput bodyRef={playerBodyRef} />
       <FirstFrameSignal onFirstFrame={handleFirstFrame} />
     </Canvas>
   )

@@ -3,7 +3,10 @@ import { CapsuleCollider, RigidBody, useRapier } from '@react-three/rapier'
 import { Suspense, useRef } from 'react'
 import { Quaternion, Vector3 } from 'three'
 
+import { aim } from './aim'
 import { AvatarBoundary, StandInBody } from './AvatarBoundary'
+import { useBossFight } from './bossFight'
+import { leaveFootprint } from './footprintSets'
 import { useGame } from './gameStore'
 import { readInput } from './input'
 import PlayerAvatar from './PlayerAvatar'
@@ -26,8 +29,8 @@ const SPRINT_MULTIPLIER = 1.6
  * enough to hop onto the 1.2-unit terrace steps.
  */
 const JUMP_VELOCITY = 7.6
-/** Length of one sword swing animation. */
-export const SWING_DURATION_S = 0.35
+/** Length of one shot's recoil animation. Short: an auto clicker fires ten a second. */
+export const SHOT_DURATION_S = 0.22
 /** Falling below this puts the player back at their spawn point. */
 const FALL_LIMIT_Y = -25
 /** Extra ray length past the capsule bottom; tolerates small ground gaps. */
@@ -123,8 +126,9 @@ export function Player({ position = [0, 3, 0], onAvatarReady, bodyRef: externalB
     _input.set(k.x, 0, k.z)
 
     const linvel = body.linvel()
+    const staggered = useBossFight.getState().staggerUntil > performance.now()
 
-    const push = _input.length()
+    const push = staggered ? 0 : _input.length()
     if (push > 0.02) {
       // Normalise the direction but keep how hard it was pushed: full deflection is
       // a run, half is a walk. A key is always full.
@@ -162,23 +166,27 @@ export function Player({ position = [0, 3, 0], onAvatarReady, bodyRef: externalB
       }
     } else {
       // Damp horizontal motion to a stop; don't touch the fall speed.
-      body.setLinvel({ x: linvel.x * 0.8, y: linvel.y, z: linvel.z * 0.8 }, true)
+      if (!staggered) body.setLinvel({ x: linvel.x * 0.8, y: linvel.y, z: linvel.z * 0.8 }, true)
 
-      // Training: turn to face the dummy. Beside a stage wall: turn to face the wall.
+      // Training: turn to face the target. Beside a stage wall: turn to face the
+      // wall. In the boss arena: turn to face the boss.
       const game = useGame.getState()
-      if (visualRef.current && (game.activeTrainer || game.nearWall)) {
+      if (visualRef.current && (game.activeTrainer || game.nearWall || (game.inBossArena && aim.target))) {
+        const here = body.translation()
         const yaw = game.activeTrainer
           ? game.trainYaw
-          : body.translation().z > game.nearWall.z
-            ? Math.PI
-            : 0
+          : game.nearWall
+            ? here.z > game.nearWall.z
+              ? Math.PI
+              : 0
+            : Math.atan2(aim.target[0] - here.x, aim.target[2] - here.z)
         _targetQuat.setFromAxisAngle(_up, yaw)
         visualRef.current.quaternion.slerp(_targetQuat, 1 - Math.pow(0.001, delta))
       }
     }
 
     // --- Jump --------------------------------------------------------------------
-    if (k.jump && jumpCooldown.current === 0 && grounded) {
+    if (k.jump && !staggered && jumpCooldown.current === 0 && grounded) {
       const v = body.linvel()
       body.setLinvel({ x: v.x, y: JUMP_VELOCITY, z: v.z }, true)
       jumpCooldown.current = JUMP_COOLDOWN_S
@@ -204,13 +212,24 @@ export function Player({ position = [0, 3, 0], onAvatarReady, bodyRef: externalB
     motion.grounded = grounded
     motion.maxSpeed = maxSpeed
     motion.phase = s.phase
-    motion.swing = (performance.now() / 1000 - useGame.getState().swingAt) / SWING_DURATION_S
+    motion.shot = (performance.now() / 1000 - useGame.getState().shotAt) / SHOT_DURATION_S
+    // The way the gun points, for the tracers (see ShotEffects). A pure turn about +Y,
+    // so the yaw falls straight out of the quaternion.
+    if (visualRef.current) {
+      const q = visualRef.current.quaternion
+      aim.yaw = 2 * Math.atan2(q.y, q.w)
+    }
 
     // --- Footsteps and landing ------------------------------------------------------
     const beat = Math.floor(s.phase / Math.PI - 0.5)
     if (beat !== s.beat) {
       s.beat = beat
-      if (grounded && speed > 1) playSound('step', { sprint: k.sprint })
+      if (grounded && speed > 1) {
+        playSound('step', { sprint: k.sprint })
+        // Feet first: the capsule's centre is a body's height off the ground.
+        const at = body.translation()
+        leaveFootprint(at.x, at.y - CAPSULE_HALF_HEIGHT - CAPSULE_RADIUS, at.z, Math.atan2(nowVel.x, nowVel.z), beat % 2 ? 1 : -1)
+      }
     }
     if (grounded) {
       if (s.airborne > 0.25 && s.fallSpeed > 4) playSound('land', { strength: Math.min(1, s.fallSpeed / 14) })

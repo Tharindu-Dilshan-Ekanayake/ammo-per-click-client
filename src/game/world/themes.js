@@ -47,6 +47,16 @@ export const STAGE_LEN = TUNNEL_LEAD + (WALLS_PER_STAGE - 2) * WALL_GAP + DIVIDE
 /** Near the north end of the central path, facing the gate. */
 export const SPAWN = [0, 2, LOBBY_HALF - 12]
 
+/**
+ * Where the boss fight is: the middle of an arena far north of everything else.
+ * You arrive at its north end, facing the boss in the south.
+ */
+export const BOSS_CENTER = [0, 0, 420]
+export const BOSS_SPAWN = [0, 2, BOSS_CENTER[2] + 14]
+
+/** Space World's hub is four hundred metres west of the lobby; you arrive in it here. */
+export const SPACE_SPAWN = [-400, 2, 18]
+
 /** Cyan used for every stage-wall frame. */
 export const FRAME_COLOR = '#6ff7ff'
 
