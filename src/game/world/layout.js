@@ -1,7 +1,7 @@
-import { BUX_EGGS, WINS_EGGS } from '../eggs'
-import { BUX_GUNS, SPACE_GUNS, WINS_GUNS } from '../guns'
+import { VIP_EGGS, WINS_EGGS } from '../eggs'
+import { SPACE_GUNS, VIP_GUNS, WINS_GUNS } from '../guns'
 import { BOSS_REBIRTHS, SPACE_REBIRTHS } from '../progression'
-import { BUX_TRAINERS, SPACE_TRAINERS, WINS_TRAINERS } from '../trainers'
+import { SPACE_TRAINERS, VIP_TRAINERS, WINS_TRAINERS } from '../trainers'
 import { SPACE_WALL_BASE, SPACE_WALLS, WALLS_PER_STAGE, wallStage, WIN_PADS } from '../walls'
 import { mulberry32 } from './textures'
 import {
@@ -31,10 +31,10 @@ import {
 } from './themes'
 
 /**
- * The look of the three Bux platforms - one in the gun zone, one in the egg zone,
+ * The look of the three VIP platforms - one in the gun zone, one in the egg zone,
  * one in the training zone. Purple plinth, gold deck, neon lip: nothing else in the
- * lobby is coloured like this, which is the point. Items bought with Wins stand in
- * the zone's own rows; items bought with Bux stand up here, well clear of them.
+ * lobby is coloured like this, which is the point. The ladder stands in the zone's
+ * own rows; the VIP items - the priciest of all - stand up here, well clear of them.
  */
 const VIP_TRIM = '#3a1f6e'
 const VIP_DECK = 'floor:#ffd76a,#e0a11e'
@@ -195,7 +195,7 @@ export function buildLayout() {
       labels.push({
         lines: [
           { text: title, scale: 1.25, fill: ['#ffffff', '#e9c6ff'] },
-          { text: 'BOUGHT WITH BUX', scale: 0.62, fill: ['#d6f6ff', '#2fa8ff'] },
+          { text: 'THE BEST - FOR THE MOST WINS', scale: 0.55, fill: ['#d6f6ff', '#2fa8ff'] },
         ],
         position: [signCx, VIP_SIGN_Y, backZ + (facing === 0 ? 0.13 : -0.13)],
         rotationY: facing,
@@ -319,7 +319,7 @@ export function buildLayout() {
       //
       // Centred, its seven-wide opening landed square on the one strip of this zone
       // that nothing else stands in - the lane between the avenue and the front row
-      // of dummies - which left the Bux platform nowhere to go but into the doorway.
+      // of dummies - which left the VIP platform nowhere to go but into the doorway.
       // It sat there, half behind an arch post, and you met it face-on the moment you
       // walked in. Moved to the north end the same lane is one clear eleven-metre
       // block instead, the platform has the south end of it to itself, and the way in
@@ -394,7 +394,7 @@ export function buildLayout() {
     crystals.push({ position: [STATUE_X + dx, 0, GUN_Z + dz], color: '#7fdcff', scale: 0.8 })
   }
 
-  // The two Bux guns, on their own platform at the south end of the zone - past
+  // The two VIP guns, on their own platform at the south end of the zone - past
   // the bottom of both shop rows, so there is no mistaking them for part of the
   // ladder.
   //
@@ -405,7 +405,7 @@ export function buildLayout() {
   const GUN_VIP = [-17.5, -23]
   const GUN_VIP_SPREAD = 2.4
   const gunVipY = vipPlatform(GUN_VIP[0], GUN_VIP[1], 4.5, 4.5, 'VIP GUNS')
-  BUX_GUNS.forEach((gun, i) => {
+  VIP_GUNS.forEach((gun, i) => {
     const dx = i === 0 ? -GUN_VIP_SPREAD : GUN_VIP_SPREAD
     gunPads.push({ gun, position: [GUN_VIP[0] + dx, gunVipY, GUN_VIP[1]] })
   })
@@ -437,7 +437,7 @@ export function buildLayout() {
     }
   })
 
-  // The two Bux dummies, on their own platform at the south end of the lane between
+  // The two VIP targets, on their own platform at the south end of the lane between
   // the avenue and the front row of Wins dummies.
   //
   // The deck's centre sits east of its pads on purpose: turned the same way as the
@@ -454,7 +454,7 @@ export function buildLayout() {
   const TRAIN_VIP_PAD_X = 14.4
   const TRAIN_VIP_SPREAD = 2.1
   const trainVipY = vipPlatform(TRAIN_VIP[0], TRAIN_VIP[1], 2.9, 4.5, 'VIP TRAINING', { cx: 14, w: 3.2 })
-  BUX_TRAINERS.forEach((trainer, i) => {
+  VIP_TRAINERS.forEach((trainer, i) => {
     trainerPads.push({
       trainer,
       position: [
@@ -489,7 +489,7 @@ export function buildLayout() {
   })
   hill(L - 8, EGG_Z - eggRowHalf - 2.5, L, EGG_Z + eggRowHalf + EGG_STEP + 2.5, LEDGE_H)
 
-  // The Bux egg, on its own platform in the strip between the zone's arch and the
+  // The VIP egg, on its own platform in the strip between the zone's arch and the
   // front row, at the south end where neither reaches.
   // Pushed south of the zone's arch opening (z -22..-15), which it used to sit in
   // the mouth of, and pulled in off both the fence and the front row.
@@ -497,7 +497,7 @@ export function buildLayout() {
   /** The egg sits on the east half of the deck; the banner gets the west lane. */
   const EGG_VIP_X = 17.3
   const eggVipY = vipPlatform(EGG_VIP[0], EGG_VIP[1], 3.8, 3, 'VIP EGG', { cx: 13.2, w: 3.6 })
-  for (const egg of BUX_EGGS) eggStands.push({ egg, position: [EGG_VIP_X, eggVipY, EGG_VIP[1]] })
+  for (const egg of VIP_EGGS) eggStands.push({ egg, position: [EGG_VIP_X, eggVipY, EGG_VIP[1]] })
 
   /**
    * Checkered billboard on two tall black posts, standing against a side wall.

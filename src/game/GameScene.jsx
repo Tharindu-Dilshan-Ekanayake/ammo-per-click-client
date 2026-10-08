@@ -15,6 +15,7 @@ import { qualityOf, useSettings } from './settings'
 import ShootInput from './ShootInput'
 import ShotEffects from './ShotEffects'
 import { BOSS_SPAWN, SPACE_SPAWN, SPAWN } from './world/themes'
+import { refreshMaterials } from './world/nearField'
 import World, { SunLight } from './world/World'
 
 /**
@@ -51,6 +52,35 @@ function FirstFrameSignal({ onFirstFrame }) {
     fired.current = true
     onFirstFrame()
   })
+  return null
+}
+
+/**
+ * Brings the picture back after the GPU drops the WebGL context - a driver reset, or
+ * a weak GPU giving up under the load-time shader compile. three.js rebuilds its own
+ * state when the context returns, but materials and textures only re-upload when
+ * asked, so this asks for all of them.
+ */
+function ContextRecovery() {
+  const store = useStore()
+  useEffect(() => {
+    const { gl } = store.getState()
+    const canvas = gl.domElement
+    const onLost = (e) => {
+      e.preventDefault()
+      console.warn('[render] WebGL context lost - waiting for it to come back')
+    }
+    const onRestored = () => {
+      console.warn('[render] WebGL context restored - re-uploading the scene')
+      refreshMaterials(store.getState().scene, { textures: true })
+    }
+    canvas.addEventListener('webglcontextlost', onLost)
+    canvas.addEventListener('webglcontextrestored', onRestored)
+    return () => {
+      canvas.removeEventListener('webglcontextlost', onLost)
+      canvas.removeEventListener('webglcontextrestored', onRestored)
+    }
+  }, [store])
   return null
 }
 
@@ -176,6 +206,7 @@ export function GameScene({ bodyRef: externalBodyRef }) {
       onCreated={({ gl }) => gl.setClearColor('#bfe4ff')}
     >
       <ShadowToggle enabled={shadows} />
+      <ContextRecovery />
       <fog attach="fog" args={['#cfeaff', 140, 420]} />
       <hemisphereLight args={['#d6ecff', '#6b8f5a', 0.42]} />
       <SunLight bodyRef={playerBodyRef} anchorRef={playerAnchorRef} />

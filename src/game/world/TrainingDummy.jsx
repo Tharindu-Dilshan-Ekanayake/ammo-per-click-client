@@ -5,7 +5,6 @@ import { useMemo, useRef } from 'react'
 import { AdditiveBlending, BoxGeometry, Vector3 } from 'three'
 
 import { setAimTarget } from '../aim'
-import { useBuxPrice } from '../../bloxity/prices'
 import { formatNumber } from '../format'
 import { useGame } from '../gameStore'
 import { DUMMY_OFFSET_Z, rebirthsShort } from '../trainers'
@@ -34,8 +33,6 @@ const STATUS_GLOW = {
   locked: 0.45,
   /** Wants rebirths first. Dim like `locked`, because that is what it is. */
   rebirth: 0.45,
-  /** A Bux target nobody has unlocked yet: for sale, so it stays lit. */
-  bux: 1,
 }
 const GEM = ['#d6f6ff', '#2fa8ff']
 
@@ -76,8 +73,6 @@ const popupTexture = (gain) =>
  *   The target stands on the pad's local -Z side; `rotationY` turns the whole pad.
  */
 export function TrainingDummy({ trainer, position, rotationY = 0, labelY = 4.9 }) {
-  // A Bux target has no `cost`, so no amount of Wins makes it "affordable" - it
-  // shows as `bux` until it is bought.
   // 'rebirth' outranks the Wins states on the top three targets: a price you could
   // pay is the wrong thing to show someone who cannot buy it at any price yet.
   const localStatus = useGame((s) =>
@@ -85,16 +80,13 @@ export function TrainingDummy({ trainer, position, rotationY = 0, labelY = 4.9 }
       ? 'active'
       : s.unlockedTrainers.includes(trainer.id)
         ? 'unlocked'
-        : trainer.bux
-          ? 'bux'
-          : rebirthsShort(trainer, s.rebirths) > 0
-            ? 'rebirth'
-            : s.wins >= trainer.cost
-              ? 'affordable'
-              : 'locked',
+        : rebirthsShort(trainer, s.rebirths) > 0
+          ? 'rebirth'
+          : s.wins >= trainer.cost
+            ? 'affordable'
+            : 'locked',
   )
   const rebirthsToGo = useGame((s) => rebirthsShort(trainer, s.rebirths))
-  const bux = useBuxPrice(trainer)
   // Someone else training here shows the same "TRAINING!" glow, even though it's
   // not us - other players' training pads should look alive to us too.
   const remoteActive = useLobby((s) => Object.values(s.players).some((p) => p.trainer === trainer.id))
@@ -158,7 +150,7 @@ export function TrainingDummy({ trainer, position, rotationY = 0, labelY = 4.9 }
         ? 0.6 + 0.25 * Math.sin(clock.elapsedTime * 5)
         : status === 'locked'
           ? 0.08
-          : status === 'bux'
+          : trainer.vip
             ? 0.4 + 0.2 * Math.sin(clock.elapsedTime * 3)
             : 0.3
     }
@@ -190,9 +182,7 @@ export function TrainingDummy({ trainer, position, rotationY = 0, labelY = 4.9 }
       ? { text: 'SHOOTING!', fill: '#7dff6a' }
       : status === 'unlocked'
         ? { text: trainer.cost === 0 ? 'FREE' : 'UNLOCKED', fill: '#7fd8ff' }
-        : status === 'bux'
-          ? { text: `${bux} Bux`, icon: 'bux', fill: GEM }
-          : status === 'rebirth'
+        : status === 'rebirth'
             ? {
                 text: `${trainer.rebirths} Rebirth${trainer.rebirths === 1 ? '' : 's'}`,
                 icon: 'star',
@@ -295,6 +285,7 @@ export function TrainingDummy({ trainer, position, rotationY = 0, labelY = 4.9 }
       <Billboard position={[0, labelY, DUMMY_OFFSET_Z]}>
         <Label
           lines={[
+            ...(trainer.vip ? [{ text: 'VIP', scale: 0.7, fill: GEM }] : []),
             { text: trainer.name, scale: 0.8, fill: ['#ffffff', '#dfe9ff'] },
             { text: `${trainer.multiplier}x Power`, icon: 'ammo', scale: 1.1, fill: ['#ffffff', '#ffe9a8'] },
             statusLine,
@@ -308,7 +299,6 @@ export function TrainingDummy({ trainer, position, rotationY = 0, labelY = 4.9 }
       {offered &&
         (status === 'affordable' ||
           status === 'locked' ||
-          status === 'bux' ||
           status === 'rebirth') && (
           <InteractPrompt
             position={[0, 2.4, DUMMY_OFFSET_Z / 2]}
@@ -317,9 +307,7 @@ export function TrainingDummy({ trainer, position, rotationY = 0, labelY = 4.9 }
             detail={
               status === 'rebirth'
                 ? `⭐ ${trainer.rebirths} Rebirths · ${rebirthsToGo} to go`
-                : status === 'bux'
-                  ? `💎 ${bux} Bux  -  yours for good`
-                  : `🏆 ${formatNumber(trainer.cost)} Wins${status === 'locked' ? ' · not enough Wins' : ''}`
+                : `🏆 ${formatNumber(trainer.cost)} Wins${status === 'locked' ? ' · not enough Wins' : ''}`
             }
             tone={status === 'locked' || status === 'rebirth' ? 'warn' : 'normal'}
           />

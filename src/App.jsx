@@ -17,7 +17,7 @@ function App() {
       <AuthHUD />
       {/* The Controls button and its popup live in the same left rail as Pets and
           Rebirth - see ui/Controls.jsx and ui/GameHUD.jsx's WinsCounter. */}
-      <GameHUD bodyRef={playerBodyRef} />
+      <GameHUD />
       <TouchControls />
       <SoundToggle />
       <FpsCounter />

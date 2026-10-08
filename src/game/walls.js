@@ -49,9 +49,9 @@ export const WALL_RESET_DELAY_S = 10
  * Gold, on the right, is the normal pad: always open, pays the base Wins.
  *
  * Blue, on the left, is the VIP pad. It pays double and asks for no Ammo at all,
- * but it stays shut until the player buys the VIP Wins Pad with Bux (see
+ * but it stays shut until the player buys the VIP Wins Pad pass with Wins (see
  * game/passes.js) — one purchase opens the blue pad in front of every stage, for
- * good. `pass` is what makes a pad Bux-gated; `ammo` is then ignored.
+ * good. `pass` is what makes a pad pass-gated; `ammo` is then ignored.
  */
 export const WIN_PADS = [
   { id: 'blue', side: -1, color: '#2fd4ff', fill: ['#e8fdff', '#35d8ff'], wins: 2, ammo: 0, pass: 'vipWins' },
@@ -94,7 +94,7 @@ export const padAmmo = (number, pad) => wallHp(number) * pad.ammo
 /**
  * Whether this pad will pay out right now.
  *
- * A Bux pad opens on the pass and nothing else; a normal one opens on Ammo. Takes
+ * A VIP pad opens on the pass and nothing else; a normal one opens on Ammo. Takes
  * the game state rather than reading the store itself, so the pads' render path and
  * `claimPad` can both ask the same question of the same snapshot.
  *

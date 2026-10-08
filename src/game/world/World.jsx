@@ -257,7 +257,10 @@ export function World({ bodyRef }) {
       <EggStands items={near.eggStands} />
 
       <Statue position={layout.statue.position} gun={statueGun} />
-      {!warmed && <ShaderWarmup onDone={onWarm} />}
+      {/* Mounted for good, not just until it is done: it holds the warm-up's shaders
+          for the whole session, and unmounting it threw them all away the moment the
+          world shrank back to its real view distance. */}
+      <ShaderWarmup onDone={onWarm} />
     </>
   )
 }

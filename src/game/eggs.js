@@ -1,15 +1,14 @@
 /**
- * Eggs in the lobby's egg zone. Hatching one spends Wins (or Bux, for the VIP egg)
- * and gives its pet for good - see pets.js.
+ * Eggs in the lobby's egg zone. Hatching one spends Wins and gives its pet for good -
+ * see pets.js.
  *
  * cost:   Wins to hatch one
  * colors: [base, accent] for the voxel egg
  * glow:   emissive strength
  *
- * bux:    set instead of `cost` on the VIP egg - it is bought with Bux and sits on
- *         its own platform away from the rows (see world/layout.js). `sku` is the
- *         IAP it buys, which must exist and be active in the Bloxity admin panel.
- *         An egg with `bux` has no `cost`, so always check for it first.
+ * vip:    set on the Exclusive egg. Its pet has the best bonus in the game, it
+ *         costs far more than the Rainbow egg, and it sits on its own gold
+ *         platform away from the rows (see world/layout.js).
  */
 export const EGGS = [
   { id: 'common', name: 'Common Egg', cost: 50, colors: ['#f4f4f4', '#cfd8e3'] },
@@ -23,14 +22,14 @@ export const EGGS = [
   { id: 'galaxy', name: 'Galaxy Egg', cost: 2500000, colors: ['#3b2a8a', '#ff7af5'], glow: 0.7 },
   { id: 'rainbow', name: 'Rainbow Egg', cost: 10000000, colors: ['#ff4fd8', '#7ff9ff'], glow: 0.8 },
 
-  // --- The Bux egg. Its pet carries the best Wins bonus in the game (see pets.js).
-  { id: 'exclusive', name: 'Exclusive Egg', bux: 249, sku: 'egg_exclusive', colors: ['#bfe4ff', '#3f7cff'], glow: 0.9 },
+  // --- The VIP egg. Its pet carries the best Wins bonus in the game (see pets.js).
+  { id: 'exclusive', name: 'Exclusive Egg', vip: true, cost: 50000000, colors: ['#bfe4ff', '#3f7cff'], glow: 0.9 },
 ]
 
 /** The egg on the VIP platform. */
-export const BUX_EGGS = EGGS.filter((e) => e.bux)
+export const VIP_EGGS = EGGS.filter((e) => e.vip)
 /** The eggs hatched with Wins - the two rows in the egg zone. */
-export const WINS_EGGS = EGGS.filter((e) => !e.bux)
+export const WINS_EGGS = EGGS.filter((e) => !e.vip)
 
 /** @returns the egg, or undefined for an unknown id. */
 export const getEgg = (id) => EGGS.find((e) => e.id === id)

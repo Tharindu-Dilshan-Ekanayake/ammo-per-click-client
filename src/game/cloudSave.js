@@ -155,12 +155,6 @@ async function load(userId) {
   } else {
     game.loadProgress(server.progress, { ownerId: userId, syncedRev: server.rev })
   }
-  // Whichever copy won, everything the account has bought comes with it - including
-  // anything bought on another device since this one last saw the server.
-  const state = useGame.getState()
-  useGame.setState(
-    Object.fromEntries(Object.entries(server.granted ?? {}).map(([field, ids]) => [field, union(state[field], ids)])),
-  )
 
   syncing = userId
   setDirty(userId, push)
@@ -168,7 +162,6 @@ async function load(userId) {
   if (push) save()
 }
 
-const union = (a = [], b = []) => [...new Set([...a, ...b])]
 
 /**
  * The last save, as the page closes.

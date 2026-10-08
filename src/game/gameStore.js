@@ -1,7 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
-import { isSignedIn, purchase, showLogin } from '../bloxity/bux'
 import { bossReward } from './boss'
 import { getEgg } from './eggs'
 import { formatBonus, formatNumber } from './format'
@@ -95,11 +94,7 @@ export const DEFAULT_PROGRESS = Object.freeze({
   /** Whether the OP Auto Clicker has been bought. */
   opAutoOwned: false,
   /**
-   * Ids of the Bux passes the player owns (see game/passes.js).
-   *
-   * Signed in, the game server is the authority on these: its purchase webhook
-   * records every pass bought, and the progress it hands back on load always
-   * carries them (see server/src/progress.js). Signed out, nothing can be bought.
+   * Ids of the passes the player owns (see game/passes.js), bought with Wins.
    */
   ownedPasses: [],
   /** Whether Auto Wins is switched on (it only runs once the pass is owned). */
@@ -148,14 +143,12 @@ export const useGame = create(
       rebirthOpen: false,
       /** Whether the Pets panel is open. */
       petsOpen: false,
-      /** Whether the Bux shop is open. */
+      /** Whether the shop is open. */
       shopOpen: false,
       /** Whether the Controls panel is open. */
       controlsOpen: false,
       /** Which pet's card the Pets panel is showing on the right, or null. */
       petsSelected: null,
-      /** True while a Bux purchase modal is open, so a held E can't start a second. */
-      purchasing: false,
 
       /** Id of the target whose pad the player is standing on, or null. */
       activeTrainer: null,
@@ -247,14 +240,6 @@ export const useGame = create(
           notify(`${trainer.name} needs ${trainer.rebirths} Rebirths - ${short} to go`, 'error')
           return
         }
-        // The two VIP targets are bought with Bux, and start training straight away.
-        if (trainer.bux) {
-          return get().buyWithBux(trainer, () => ({
-            unlockedTrainers: [...get().unlockedTrainers, id],
-            activeTrainer: id,
-            interact: null,
-          }))
-        }
         if (wins < trainer.cost) {
           notify(`Need ${formatNumber(trainer.cost - wins)} more Wins to unlock the ${trainer.name}`, 'error')
           return
@@ -313,14 +298,6 @@ export const useGame = create(
         if (ownedPets.includes(id)) {
           get().togglePet(id)
           return
-        }
-
-        // The Exclusive egg is bought with Bux; its pet comes out following you.
-        if (egg.bux) {
-          return get().buyWithBux(egg, () => ({
-            ownedPets: [...get().ownedPets, id],
-            equippedPets: [...get().equippedPets, id].slice(0, MAX_EQUIPPED),
-          }))
         }
 
         if (wins < egg.cost) {
@@ -413,8 +390,8 @@ export const useGame = create(
       /**
        * Spend all your Ammo for a permanent multiplier on every future click.
        *
-       * Only `ammo` is given up. Wins, guns, pets, targets, boosts and anything
-       * bought with Bux are all left exactly as they were - a button that took back
+       * Only `ammo` is given up. Wins, guns, pets, targets, boosts and passes are
+       * all left exactly as they were - a button that took back
        * something the player had paid for would be a trap, and this one is meant to
        * be pressed.
        *
@@ -432,10 +409,7 @@ export const useGame = create(
       },
 
       /**
-       * E at a gun pad: equip it if owned, otherwise try to buy it.
-       *
-       * Returns a promise only for the Bux guns, whose purchase is a round trip
-       * through the portal; the Wins path is synchronous and returns nothing.
+       * E at a gun pad: equip it if owned, otherwise try to buy it with Wins.
        */
       pickGun: (id) => {
         const { owned, equipped, wins, notify } = get()
@@ -449,12 +423,6 @@ export const useGame = create(
           notify(`Equipped ${gun.name}`)
           playSound('equip')
           return
-        }
-        // The two VIP guns are bought with Bux, not Wins, and come equipped. The
-        // promise is handed back rather than dropped: the E key does not care, but a
-        // caller that wants to know when the modal closed can wait for it.
-        if (gun.bux) {
-          return get().buyWithBux(gun, () => ({ owned: [...get().owned, id], equipped: id }))
         }
         if (wins < gun.cost) {
           notify(`Need ${formatNumber(gun.cost - wins)} more Wins for the ${gun.name}`, 'error')
@@ -607,20 +575,28 @@ export const useGame = create(
       },
 
       /**
-       * Buys a Bux pass (see game/passes.js). The SDK draws the confirm modal and
-       * takes the payment; all we do is wait for its answer and unlock on success.
+       * Buys a pass with Wins (see game/passes.js).
        *
-       * @returns {Promise<boolean>} whether the pass is now owned
+       * @returns {boolean} whether the pass is now owned
        */
       buyPass: (id) => {
+        const { ownedPasses, wins, notify } = get()
         const pass = getPass(id)
-        if (!pass) return Promise.resolve(false)
-        if (get().ownedPasses.includes(id)) return Promise.resolve(true)
-        return get().buyWithBux(pass, () => ({
-          ownedPasses: [...get().ownedPasses, id],
+        if (!pass) return false
+        if (ownedPasses.includes(id)) return true
+        if (wins < pass.cost) {
+          notify(`Need ${formatNumber(pass.cost - wins)} more Wins for ${pass.name}`, 'error')
+          return false
+        }
+        set({
+          wins: wins - pass.cost,
+          ownedPasses: [...ownedPasses, id],
           // Auto Wins is no use bought and switched off.
           ...(id === 'autoWins' ? { autoWins: true } : null),
-        }))
+        })
+        notify(`${pass.name} unlocked - yours for good!`, 'success')
+        playSound('unlock')
+        return true
       },
 
       /** Switches Auto Wins on or off; offers the pass if it isn't owned yet. */
@@ -643,56 +619,6 @@ export const useGame = create(
         const gain = Math.round(stageWins(stage) * winsMultiplier(state))
         set({ wins: state.wins + gain })
         return gain
-      },
-
-      /**
-       * The shared front half of every Bux purchase: the passes, the two Bux guns,
-       * the Exclusive egg and the two VIP targets all come through here.
-       *
-       * The SDK owns the whole payment - it prices the SKU server-side, draws the
-       * confirm modal and takes the Bux - so all this does is check somebody is
-       * signed in, wait for the answer, and hand the result to `grant`. The game
-       * server hears about the purchase separately, from Bloxity's webhook, and
-       * records it against the account (see server/src/routes.js).
-       *
-       * Async, unlike every other buy in this store, because a real payment is a
-       * round trip through the portal. `purchasing` keeps a held E (or a second
-       * click) from opening a modal behind the one already up.
-       *
-       * @param {{ sku: string, name: string, id: string }} item
-       * @param {() => object} grant returns the state patch that hands the item over
-       * @returns {Promise<boolean>} whether the player now has it
-       */
-      buyWithBux: async (item, grant) => {
-        const { purchasing, notify } = get()
-        if (!item?.sku) return false
-        if (purchasing) return false
-
-        if (!isSignedIn()) {
-          notify('Log in to Bloxity to buy with Bux', 'error')
-          showLogin()
-          return false
-        }
-
-        set({ purchasing: true })
-        try {
-          const result = await purchase(item.sku, { itemId: item.id })
-          if (!result.success) {
-            // "User cancelled" is the player closing the modal, not a fault.
-            if (result.error && result.error !== 'User cancelled') {
-              notify(result.error, 'error')
-            }
-            return false
-          }
-          // grant() re-reads the store on purpose: the await above spans a modal,
-          // so anything captured before it is stale by now.
-          set(grant())
-          notify(`${item.name} unlocked!`, 'success')
-          playSound('unlock')
-          return true
-        } finally {
-          set({ purchasing: false })
-        }
       },
 
       /** An auto clicker button: start or stop it, buying the OP one the first time. */

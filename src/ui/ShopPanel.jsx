@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
 
-import { useBuxPrice } from '../bloxity/prices'
 import { useTouchDevice } from '../game/device'
 import { footprintCanvas, footprintCost, FOOTPRINT_SETS, footprintRarity, footprintStyle } from '../game/footprintSets'
 import { formatNumber } from '../game/format'
@@ -9,28 +8,23 @@ import { getPass, PASSES } from '../game/passes'
 import { CHIP, OUTLINE } from './textStyle'
 
 /**
- * The shop: the Bux passes, and every gun's footprints (bought with Wins). Guns,
- * targets and the Exclusive egg are sold where they stand,
- * on their VIP platforms; the shop says so at the bottom rather than duplicating them.
- *
- * Every price here is the live one from the admin panel (see bloxity/prices.js), and
- * every button goes through the same `buyWithBux` the world's VIP items do - the SDK
- * draws the confirm modal and takes the payment.
+ * The shop: the passes and every gun's footprints, all bought with Wins. Guns,
+ * targets and the Exclusive egg are sold where they stand, on their VIP platforms;
+ * the shop says so at the bottom rather than duplicating them.
  */
 
 const INK = '#1b1b25'
 /** See RebirthPanel: emoji need a shadow to sit with the outlined text. */
 const EMOJI = { filter: 'drop-shadow(0 2px 0 rgba(0,0,0,0.55)) drop-shadow(0 0 6px rgba(0,0,0,0.35))' }
 
-/** The Bux gem with a price, as every buy button wears it. */
+/** A trophy and a price in Wins, as every buy button wears it. */
 function Price({ item, className = '' }) {
-  const bux = useBuxPrice(item)
   return (
     <span className={`flex items-center gap-1 ${className}`}>
       <span style={EMOJI} aria-hidden>
-        💎
+        🏆
       </span>
-      {bux}
+      {formatNumber(item.cost)}
     </span>
   )
 }

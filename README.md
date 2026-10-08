@@ -6,7 +6,8 @@ and Wins buy better guns, targets and pets. Rebirth for a permanent multiplier;
 Rebirth 1 opens the **Boss Arena**, Rebirth 3 opens **Space World**.
 
 React + three.js (react-three-fiber, Rapier physics), with the Bloxity SDK for
-login, avatars and Bux.
+login and avatars. Everything in the game is bought with Wins - there is no
+real-money currency.
 
 ## Running it locally
 
@@ -28,8 +29,7 @@ directly — lobbies and cloud saves both.
 | `src/game/walls.js` | wall health and the stage payouts (`STAGE_WINS`) |
 | `src/game/trainers.js` | the shooting targets and their multipliers |
 | `src/game/boss.js` | boss health, rewards and the fight clock |
-| `src/game/passes.js` | Bux passes |
-| `src/game/catalog.js` | every Bux SKU in one list (must match the server's) |
+| `src/game/passes.js` | the passes (2x Power, 2x Wins, Auto Wins, VIP Wins Pad) |
 | `src/game/cloudSave.js` | loading and saving progress on the game server |
 | `src/net/hosting.js` | which back end and matchmaker this page uses |
 | `src/game/world/layout.js` | the whole map: lobby, stages, Boss Arena, Space World |
@@ -50,34 +50,21 @@ The page works out its own back end from its address: saves go to
 `https://<id>[.dev].host.bloxity.io`, and the lobby socket goes through the Boxity
 matchmaker (`Legion.SDK.net.resolveEndpoint`), never straight to the host.
 
-## Bloxity admin panel: In-App Purchases
+## Prices
 
-**Default Webhook URL** — the server's webhook, for the channel players buy on:
+Everything costs Wins. The VIP items, on their gold platforms, cost far more than
+their place in the ladder - that is what makes them VIP:
 
-```
-https://<gameId>.host.bloxity.io/api/legion-webhook
-```
+| item | where | Wins |
+| --- | --- | --- |
+| VIP Wins Pad | shop / blue pad | 100K |
+| 2x Power | shop | 500K |
+| 2x Wins | shop | 1M |
+| Auto Wins | shop | 2.5M |
+| Phantom Blaster | gun zone, VIP platform | 1M |
+| Celestial Minigun | gun zone, VIP platform | 25M |
+| VIP Target (250x) | training zone, VIP platform | 250K |
+| Golden VIP Target (1000x) | training zone, VIP platform | 5M |
+| Exclusive Egg (Tralaledon, x20) | egg zone, VIP platform | 50M |
 
-Without it, purchases still go through in the moment, but they are not recorded
-against the account — a pass bought today is gone on the next device or the next
-visit. If the panel offers a webhook secret, set the same value on the server as
-`LEGION_WEBHOOK_SECRET` (see the server README).
-
-**IAPs** — one per row, **SKU exactly as written**. The price is yours to choose: the
-game reads it live from the panel, so the signs always show what the player will be
-charged. The prices below are what the game shows if an IAP is missing.
-
-| SKU | name | what it gives | suggested price |
-| --- | --- | --- | --- |
-| `pass_2x_power` | 2x Power | every click gives double Ammo, forever | 149 |
-| `pass_2x_wins` | 2x Wins | every Wins payout doubled, forever | 99 |
-| `pass_auto_wins` | Auto Wins | best cleared stage's Wins every 10 s while on | 199 |
-| `vip_wins_pad` | VIP Wins Pad | opens the blue 2x pad at every stage | 179 |
-| `gun_phantom_blaster` | Phantom Blaster | VIP gun, +25K Ammo per click | 199 |
-| `gun_celestial_minigun` | Celestial Minigun | VIP gun, +700K Ammo per click | 349 |
-| `target_vip_250x` | VIP Target | 250x shooting target | 179 |
-| `target_vip_1000x` | Golden VIP Target | 1000x shooting target | 299 |
-| `egg_exclusive` | Exclusive Egg | the Tralaledon pet, x20 Wins | 249 |
-
-The browser console lists any of these the panel does not know yet
-(`[bloxity] these IAPs are not set up in the admin panel yet: …`).
+Change them in `guns.js`, `trainers.js`, `eggs.js` and `passes.js` (`cost`).

@@ -94,7 +94,7 @@ export const PETS = [
     id: 'exclusive',
     name: 'Tralaledon',
     species: 'dragon',
-    // The Bux pet, so the best bonus in the game - but bonuses add up, so this is
+    // The VIP pet, so the best bonus in the game - but bonuses add up, so this is
     // a big lift on top of a full squad rather than a replacement for one.
     winsBonus: 20,
     colors: { body: '#5a8ad8', belly: '#eaf4ff', accent: '#ff3b5a', eye: '#1a1a2a' },

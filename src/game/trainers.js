@@ -11,11 +11,9 @@
  *             the last three targets are simply bought the day a player can afford
  *             them and never thought about again. See game/progression.js.
  *
- * bux:        set instead of `cost` on the two VIP targets - they are unlocked with
- *             Bux and stand on their own platform away from the rows (see
- *             world/layout.js). `sku` is the IAP they buy, which must exist and be
- *             active in the Bloxity admin panel. A target with `bux` has no `cost`,
- *             so always check for it first.
+ * vip:        set on the two VIP targets. They cost Wins - a lot of them, and no
+ *             rebirths - and stand on their own gold platform away from the rows
+ *             (see world/layout.js).
  *
  * world:      2 on the four targets in Space World, which stand there rather than in
  *             the lobby's training zone.
@@ -35,11 +33,11 @@ export const TRAINERS = [
   { id: 'target-9', name: 'Crystal Target', multiplier: 200, cost: 25000, rebirths: 2, color: '#ff5fb8' },
   { id: 'target-10', name: 'Rainbow Target', multiplier: 450, cost: 60000, rebirths: 3, color: '#ff3b6b' },
 
-  // --- Bux targets. Shortcuts rather than an end point: 250x slots between the
-  // Wins ladder's 200x and 450x, 1000x above both. Same shape as the Bux guns -
-  // you pay to skip a stretch of the grind, not to leave it behind for good.
-  { id: 'vip-1', name: 'VIP Target', multiplier: 250, bux: 179, sku: 'target_vip_250x', color: '#a45cff' },
-  { id: 'vip-2', name: 'Golden VIP Target', multiplier: 1000, bux: 299, sku: 'target_vip_1000x', color: '#ffd23f' },
+  // --- VIP targets. Shortcuts rather than an end point: 250x slots between the
+  // ladder's 200x and 450x, 1000x above both, and neither asks for rebirths - which
+  // is what the steep price buys.
+  { id: 'vip-1', name: 'VIP Target', multiplier: 250, vip: true, cost: 250000, color: '#a45cff' },
+  { id: 'vip-2', name: 'Golden VIP Target', multiplier: 1000, vip: true, cost: 5000000, color: '#ffd23f' },
 
   // --- Space World. Past both VIP targets; only found over there.
   { id: 'space-1', name: 'Moon Target', multiplier: 750, cost: 1000000, world: 2, color: '#d8dce8' },
@@ -49,9 +47,9 @@ export const TRAINERS = [
 ]
 
 /** The two targets on the VIP platform. */
-export const BUX_TRAINERS = TRAINERS.filter((t) => t.bux)
+export const VIP_TRAINERS = TRAINERS.filter((t) => t.vip)
 /** The ten unlocked with Wins - the two rows in the training zone. */
-export const WINS_TRAINERS = TRAINERS.filter((t) => !t.bux && !t.world)
+export const WINS_TRAINERS = TRAINERS.filter((t) => !t.vip && !t.world)
 /** The four in Space World. */
 export const SPACE_TRAINERS = TRAINERS.filter((t) => t.world === 2)
 

@@ -683,7 +683,7 @@ export function skyTexture() {
   })
 }
 
-/** Small outlined icon in an `s`-sized square at (x, y): 'trophy', 'ammo', 'bux' or 'star'. */
+/** Small outlined icon in an `s`-sized square at (x, y): 'trophy', 'ammo' or 'star'. */
 function drawIcon(ctx, kind, x, y, s) {
   ctx.save()
   ctx.translate(x, y)
@@ -754,29 +754,6 @@ function drawIcon(ctx, kind, x, y, s) {
     }
     round(36, 8, 30)
     round(66, 26, 28)
-  } else if (kind === 'bux') {
-    // Bloxity's gem, to mark a price paid in Bux rather than Wins.
-    const gem = ctx.createLinearGradient(0, 0, 0, 100)
-    gem.addColorStop(0, '#d6f6ff')
-    gem.addColorStop(1, '#0f87ff')
-    ctx.beginPath()
-    ctx.moveTo(28, 10)
-    ctx.lineTo(72, 10)
-    ctx.lineTo(94, 40)
-    ctx.lineTo(50, 92)
-    ctx.lineTo(6, 40)
-    ctx.closePath()
-    ctx.lineWidth = 9
-    ctx.strokeStyle = '#08243f'
-    ctx.stroke()
-    ctx.fillStyle = gem
-    ctx.fill()
-    // One waistline only; the full facet web closes up at sign size.
-    ctx.beginPath()
-    ctx.moveTo(6, 40)
-    ctx.lineTo(94, 40)
-    ctx.lineWidth = 6
-    ctx.stroke()
   } else if (kind === 'star') {
     // The rebirth star, to mark a price paid in rebirths rather than in a currency.
     const gold = ctx.createLinearGradient(0, 0, 0, 100)
@@ -802,8 +779,8 @@ function drawIcon(ctx, kind, x, y, s) {
 
 /**
  * Text sign. `lines` are strings or `{ text, scale, fill, icon }`; `fill` may be a
- * list of colours for a vertical gradient, and `icon` ('trophy' | 'ammo' | 'bux' |
- * 'star') is drawn before the text.
+ * list of colours for a vertical gradient, and `icon` ('trophy' | 'ammo' | 'star') is
+ * drawn before the text.
  */
 export function labelTexture({
   lines,

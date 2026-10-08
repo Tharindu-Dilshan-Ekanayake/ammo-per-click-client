@@ -7,7 +7,6 @@ import { AdditiveBlending, DoubleSide } from 'three'
 import { formatNumber } from '../format'
 import { useGame } from '../gameStore'
 import { getPass } from '../passes'
-import { useBuxPrice } from '../../bloxity/prices'
 import { HOLD_S, padAmmo, padUnlocked, padWins } from '../walls'
 import { Label, Sparkle } from './Effects'
 import InteractPrompt, { HOLD_RING } from './InteractPrompt'
@@ -22,7 +21,7 @@ const BEAM_H = 3.2
  * around the key, then you're paid the pad's Wins and sent back to the lobby, where
  * every broken wall rebuilds.
  *
- * The left-hand blue pad is Bux-gated instead (`pad.pass`, see walls.js). Locked, the
+ * The left-hand blue pad is pass-gated instead (`pad.pass`, see walls.js). Locked, the
  * same hold on E opens the SDK's purchase modal rather than paying out — holding
  * rather than tapping on purpose, so a stray key press can never start a payment.
  *
@@ -35,7 +34,7 @@ export function WinPad({ number, pad, position, home = SPAWN }) {
   const needed = padAmmo(number, pad)
   const gain = padWins(number, pad)
   const pass = pad.pass ? getPass(pad.pass) : null
-  const passPrice = useBuxPrice(pass)
+  const passPrice = pass ? formatNumber(pass.cost) : ''
   const unlocked = useGame((s) => padUnlocked(number, pad, s))
   const inRange = useGame((s) => s.interact?.kind === 'pad' && s.interact.id === key)
 
@@ -46,7 +45,7 @@ export function WinPad({ number, pad, position, home = SPAWN }) {
   /** The player's rigid body, from the sensor, for the trip home. */
   const playerBody = useRef(null)
 
-  // How brightly a *locked* pad burns. A Bux pad is for sale, not out of reach, so
+  // How brightly a *locked* pad burns. A VIP pad is for sale, not out of reach, so
   // it keeps most of its glow to advertise itself; a pad that just needs more Ammo
   // goes all but dark.
   const dim = pass ? 0.55 : 0.2
@@ -65,7 +64,7 @@ export function WinPad({ number, pad, position, home = SPAWN }) {
     if (ring.current) ring.current.style.strokeDashoffset = String(HOLD_RING * (1 - Math.min(1, progress)))
 
     if (progress >= 1) {
-      // Held long enough. A locked Bux pad buys itself; anything else cashes in.
+      // Held long enough. A locked VIP pad buys its pass; anything else cashes in.
       if (pass && !unlocked) {
         // Drop the hold first: the modal takes over the screen and the keyup that
         // ends it lands on the SDK's overlay, not on us.
@@ -161,13 +160,13 @@ export function WinPad({ number, pad, position, home = SPAWN }) {
             {
               text: `+${formatNumber(gain)} Wins`,
               icon: 'trophy',
-              // A locked Bux pad keeps its colours: the number is the sales pitch.
+              // A locked VIP pad keeps its colours: the number is the sales pitch.
               fill: unlocked || pass ? pad.fill : ['#e0e0e0', '#9a9a9a'],
             },
             unlocked
               ? { text: 'HOLD E TO CLAIM', scale: 0.55, fill: '#ffffff' }
               : pass
-                ? { text: `HOLD E - ${passPrice} BUX`, scale: 0.55, fill: '#bff1ff' }
+                ? { text: `HOLD E - ${passPrice} WINS`, scale: 0.55, fill: '#bff1ff' }
                 : { text: `NEED ${formatNumber(needed)} AMMO`, scale: 0.55, fill: '#ff8a8a' },
           ]}
           position={[0, 0, 0]}
@@ -184,7 +183,7 @@ export function WinPad({ number, pad, position, home = SPAWN }) {
             ringRef={ring}
             action="Hold E"
             title={`Buy ${pass.name}`}
-            detail={`${passPrice} Bux  -  x${pad.wins} Wins at every stage, forever`}
+            detail={`🏆 ${passPrice} Wins  -  x${pad.wins} Wins at every stage, forever`}
           />
         ) : (
           <InteractPrompt

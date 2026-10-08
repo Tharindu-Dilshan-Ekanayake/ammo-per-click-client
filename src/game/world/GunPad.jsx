@@ -4,7 +4,6 @@ import { CuboidCollider, RigidBody } from '@react-three/rapier'
 import { useRef } from 'react'
 import { AdditiveBlending } from 'three'
 
-import { useBuxPrice } from '../../bloxity/prices'
 import { formatNumber } from '../format'
 import { useGame } from '../gameStore'
 import GunModel from '../GunModel'
@@ -20,8 +19,6 @@ const STATUS_COLOR = {
   owned: '#ffd23f',
   affordable: '#ff3b3b',
   locked: '#d9302b',
-  /** A Bux gun nobody has bought yet: gem blue, never the "can't afford" red. */
-  bux: '#2fa8ff',
 }
 
 /** How brightly the pad's glow shines: dim while out of reach, brightest in hand. */
@@ -30,7 +27,6 @@ const STATUS_GLOW = {
   owned: 0.85,
   affordable: 1,
   locked: 0.5,
-  bux: 1.15,
 }
 
 const GOLD = ['#fff6a8', '#ffc21a']
@@ -49,20 +45,15 @@ const DISPLAY_Y = 1.25
  * @param {{ gun: object, position: number[] }} props
  */
 export function GunPad({ gun, position }) {
-  // A Bux gun has no `cost` at all, so it can never be "affordable" or "locked" -
-  // there is no amount of Wins that buys it. It shows as `bux` until it is owned.
   const status = useGame((s) =>
     s.equipped === gun.id
       ? 'equipped'
       : s.owned.includes(gun.id)
         ? 'owned'
-        : gun.bux
-          ? 'bux'
-          : s.wins >= gun.cost
-            ? 'affordable'
-            : 'locked',
+        : s.wins >= gun.cost
+          ? 'affordable'
+          : 'locked',
   )
-  const bux = useBuxPrice(gun)
   const gunRef = useRef(null)
   const padMaterial = useRef(null)
   const aura = useRef(null)
@@ -94,13 +85,12 @@ export function GunPad({ gun, position }) {
     if (other.rigidBodyObject?.name === 'player') useGame.getState().clearInteract('gun', gun.id)
   }
 
-  const price = gun.bux ? `💎 ${bux} Bux` : gun.cost === 0 ? 'Free' : `🏆 ${formatNumber(gun.cost)} Wins`
+  const price = gun.cost === 0 ? 'Free' : `🏆 ${formatNumber(gun.cost)} Wins`
   const prompt = {
     equipped: { action: 'Equipped', tone: 'done', detail: 'In your hand' },
     owned: { action: 'Equip', tone: 'normal', detail: 'You own this gun' },
     affordable: { action: 'Buy', tone: 'normal', detail: price },
     locked: { action: 'Buy', tone: 'warn', detail: `${price} · not enough Wins` },
-    bux: { action: 'Buy', tone: 'normal', detail: `${price}  -  yours for good` },
   }[status]
 
   const color = STATUS_COLOR[status]
@@ -109,11 +99,9 @@ export function GunPad({ gun, position }) {
       ? { text: 'EQUIPPED', fill: ['#f0dcff', '#c07bff'] }
       : status === 'owned'
         ? { text: 'OWNED', fill: GOLD }
-        : gun.bux
-          ? { text: `${bux} Bux`, icon: 'bux', fill: GEM }
-          : gun.cost === 0
-            ? { text: 'FREE', fill: ['#ffffff', '#b8ffb0'] }
-            : { text: `${formatNumber(gun.cost)} Wins`, icon: 'trophy', fill: GOLD }
+        : gun.cost === 0
+          ? { text: 'FREE', fill: ['#ffffff', '#b8ffb0'] }
+          : { text: `${formatNumber(gun.cost)} Wins`, icon: 'trophy', fill: GOLD }
 
   return (
     <group position={position}>
@@ -171,13 +159,13 @@ export function GunPad({ gun, position }) {
       <Billboard position={[0, height + 1.35, 0]}>
         <Label
           lines={[
-            ...(gun.bux ? [{ text: 'VIP', scale: 0.8, fill: GEM }] : []),
+            ...(gun.vip ? [{ text: 'VIP', scale: 0.8, fill: GEM }] : []),
             priceLine,
             { text: gun.name, scale: 1.3 },
             { text: `+${formatNumber(gun.ammo)} Ammo`, icon: 'ammo', fill: ['#ff9a9a', '#ff3030'] },
           ]}
           position={[0, 0, 0]}
-          size={[3.8, gun.bux ? 2.3 : 1.9]}
+          size={[3.8, gun.vip ? 2.3 : 1.9]}
           style={{ width: 512 }}
         />
       </Billboard>

@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 
-import { setAimTarget } from '../game/aim'
 import { useBossFight } from '../game/bossFight'
 import { useTouchDevice } from '../game/device'
 import { formatBonus, formatNumber } from '../game/format'
@@ -21,8 +20,7 @@ import { PetsButton, PetsPanel } from './PetsPanel'
 import { RebirthButton, RebirthIcon, RebirthPanel } from './RebirthPanel'
 import { PromoStack, ShopButton, ShopPanel } from './ShopPanel'
 import { CHIP, OUTLINE, outlined, SOFT } from './textStyle'
-import { BOSS_SPAWN, cabinEnd, GATE_Z, SPACE_SPAWN, STAGE_COUNT } from '../game/world/themes'
-import { HUD_STRIP_H, reportStripHeight, useStripHeight, useTouchScale } from './touchLayout'
+import { HUD_STRIP_H, reportStripHeight, useTouchScale } from './touchLayout'
 
 const ICON_SHADOW = { filter: 'drop-shadow(0 3px 0 rgba(0,0,0,0.85))' }
 const INK = '#1b1b25'
@@ -387,11 +385,7 @@ function BossBar() {
 
 /**
  * Big trophy and Wins total, top left under the player card, with the pet's Wins
- * multiplier under it whenever one is out (see petWinsMultiplier), and the Bux
- * balance below that.
- */
-/**
- * Wins, the pet bonus and Bux at the upper-left.
+ * multiplier under it whenever one is out (see petWinsMultiplier).
  */
 function WinsCounter() {
   const touch = useTouchDevice()
@@ -545,96 +539,11 @@ function BoostButton({ def, now }) {
   )
 }
 
-/** Developer-only teleport controls for checking each stage and bonus world. */
-function DeveloperNav({ bodyRef }) {
-  const touch = useTouchDevice()
-  const scale = useTouchScale()
-  const stripHeight = useStripHeight()
-  const [stage, setStage] = useState(1)
-
-  if (!import.meta.env.DEV || !bodyRef) return null
-
-  const teleport = ([x, y, z]) => {
-    const body = bodyRef.current
-    if (!body) return
-    body.setTranslation({ x, y, z }, true)
-    body.setLinvel({ x: 0, y: 0, z: 0 }, true)
-    setAimTarget(null)
-    useGame.setState({
-      activeTrainer: null,
-      nearWall: null,
-      interact: null,
-      holdingSince: null,
-      inBossArena: false,
-    })
-  }
-
-  const goToStage = (next) => {
-    const target = Math.max(1, Math.min(STAGE_COUNT, next))
-    const firstWall = target === 1 ? GATE_Z : cabinEnd(target - 1)
-    teleport([0, 2, firstWall + 2])
-    setStage(target)
-  }
-
-  return (
-    <div
-      className="pointer-events-none absolute z-30 flex flex-col items-end gap-1"
-      style={
-        touch
-          ? { right: 8, bottom: `calc(var(--safe-bottom) + ${stripHeight + Math.round(190 * scale)}px)` }
-          : { right: 16, bottom: 20 }
-      }
-    >
-      <div className="pointer-events-auto flex items-center gap-1 rounded-xl border-2 px-1.5 py-1 text-white shadow-lg" style={{ borderColor: INK, background: '#172033eF', ...CHIP }}>
-        <button
-          type="button"
-          title="Previous stage"
-          onClick={() => goToStage(stage - 1)}
-          className="h-8 w-8 rounded-lg border-2 text-xl transition hover:brightness-110 active:translate-y-0.5"
-          style={{ borderColor: INK, background: '#3f8fd8' }}
-        >
-          ‹
-        </button>
-        <span className="min-w-16 text-center text-[10px]">DEV · {stage}/{STAGE_COUNT}</span>
-        <button
-          type="button"
-          title="Next stage"
-          onClick={() => goToStage(stage + 1)}
-          className="h-8 w-8 rounded-lg border-2 text-xl transition hover:brightness-110 active:translate-y-0.5"
-          style={{ borderColor: INK, background: '#3f8fd8' }}
-        >
-          ›
-        </button>
-      </div>
-      <div className="pointer-events-auto flex gap-1">
-        <button
-          type="button"
-          onClick={() => teleport(BOSS_SPAWN)}
-          className="rounded-lg border-2 px-2 py-1 text-[10px] text-white shadow"
-          style={{ ...CHIP, borderColor: INK, background: 'linear-gradient(to bottom, #ff7777, #c92838)' }}
-        >
-          BOSS
-        </button>
-        <button
-          type="button"
-          onClick={() => teleport(SPACE_SPAWN)}
-          className="rounded-lg border-2 px-2 py-1 text-[10px] text-white shadow"
-          style={{ ...CHIP, borderColor: INK, background: 'linear-gradient(to bottom, #72dcff, #1473d2)' }}
-        >
-          SPACE
-        </button>
-      </div>
-    </div>
-  )
-}
-
 /**
  * The HUD: toasts, click popups, the Wins counter, the shop and its offers, the boss
- * bar, and the bottom panel with Ammo, the level bar and boosts. Also
- * handles E (tap, or hold on Win pads).
+ * bar, and the bottom panel with Ammo, the level bar and boosts. Also handles E.
  */
-
-export function GameHUD({ bodyRef }) {
+export function GameHUD() {
   const touch = useTouchDevice()
   // The panel shrinks with the controls, so the two keep their proportions and the
   // game keeps the middle of the screen (see ui/touchLayout.js).
@@ -707,7 +616,6 @@ export function GameHUD({ bodyRef }) {
       {/* Wins stay at the top; action buttons form their own centred left rail. */}
       <WinsCounter />
       <LeftActionRail />
-      <DeveloperNav bodyRef={bodyRef} />
       <BossBar />
       <PromoStack />
       <PetsPanel />

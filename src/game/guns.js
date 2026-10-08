@@ -11,13 +11,9 @@
  * glow:   emissive strength of the trim
  * laser:  fires a laser rather than bullets (the sound and the tracer colour)
  *
- * bux:    set instead of `cost` on the two VIP guns - they are bought with Bux rather
- *         than Wins, and stand on their own platform away from the rows (see
- *         world/layout.js). `sku` is the IAP they buy; it has to exist and be active
- *         in the Bloxity admin panel or the purchase comes back "not found".
- *         Anything with `bux` set has no `cost` at all, so always check for it first.
- *         The server knows these SKUs too (server/src/catalog.js), which is what
- *         stops a player granting themselves one by editing their save.
+ * vip:    set on the two VIP guns. They cost Wins like everything else - a lot of
+ *         them, well above where they would sit in the ladder - and stand on their
+ *         own gold platform away from the rows (see world/layout.js).
  *
  * world:  2 on the guns sold in Space World, which stand there rather than in the
  *         lobby's rows. Everything else is world 1.
@@ -48,10 +44,11 @@ export const GUNS = [
   { id: 'titan', name: 'Titan Minigun', type: 'minigun', cost: 1500000000, ammo: 200000000, body: '#4a5a6a', accent: '#c8d4e0', trim: '#9fd8ff', size: 1.86, glow: 0.9 },
   { id: 'divine', name: 'Divine Ray', type: 'blaster', cost: 4000000000, ammo: 520000000, body: '#fff6d0', accent: '#ffd23f', trim: '#ffffff', size: 1.9, glow: 1, laser: true },
 
-  // --- Bux guns. Priced to leapfrog a long grind, not to end the game: Phantom
-  // lands between Plasma and Thunder, Celestial between Solar and Void.
-  { id: 'phantom', name: 'Phantom Blaster', type: 'blaster', bux: 199, sku: 'gun_phantom_blaster', ammo: 25000, body: '#1d1030', accent: '#a45cff', trim: '#f0dcff', size: 1.48, glow: 0.95, laser: true },
-  { id: 'celestial', name: 'Celestial Minigun', type: 'minigun', bux: 349, sku: 'gun_celestial_minigun', ammo: 700000, body: '#fff3cf', accent: '#7ff9ff', trim: '#ffd76a', size: 1.64, glow: 1 },
+  // --- VIP guns. Stronger than their price in the ladder would buy, and priced
+  // well above it: Phantom hits like something between Plasma and Thunder for the
+  // cost of Shadow; Celestial like something between Solar and Void for Prism money.
+  { id: 'phantom', name: 'Phantom Blaster', type: 'blaster', vip: true, cost: 1000000, ammo: 25000, body: '#1d1030', accent: '#a45cff', trim: '#f0dcff', size: 1.48, glow: 0.95, laser: true },
+  { id: 'celestial', name: 'Celestial Minigun', type: 'minigun', vip: true, cost: 25000000, ammo: 700000, body: '#fff3cf', accent: '#7ff9ff', trim: '#ffd76a', size: 1.64, glow: 1 },
 
   // --- Space World. Past the top of the lobby's ladder; only sold over there.
   { id: 'meteor', name: 'Meteor Rifle', type: 'rifle', world: 2, cost: 10000000000, ammo: 1200000000, body: '#3a2a20', accent: '#ff8a3a', trim: '#ffd27a', size: 1.94, glow: 1 },
@@ -61,9 +58,9 @@ export const GUNS = [
 ]
 
 /** The two guns on the VIP platform, in shop order. */
-export const BUX_GUNS = GUNS.filter((g) => g.bux)
+export const VIP_GUNS = GUNS.filter((g) => g.vip)
 /** Everything bought with Wins in the lobby - the long rows along the west wall. */
-export const WINS_GUNS = GUNS.filter((g) => !g.bux && !g.world)
+export const WINS_GUNS = GUNS.filter((g) => !g.vip && !g.world)
 /** The guns sold in Space World. */
 export const SPACE_GUNS = GUNS.filter((g) => g.world === 2)
 
