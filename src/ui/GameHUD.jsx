@@ -485,8 +485,8 @@ function LeftActionRail() {
  * row scrolls sideways instead - which is the honest answer, and the one where every
  * boost is still reachable.
  */
-const BUTTON_H = (scale) => Math.max(38, Math.round(40 * scale))
-const BOOST_W = (scale) => Math.max(72, Math.round(78 * scale))
+const BUTTON_H = (scale) => Math.max(34, Math.round(36 * scale))
+const BOOST_W = (scale) => Math.max(64, Math.round(70 * scale))
 const ICON_PX = (scale) => Math.max(16, Math.round(18 * scale))
 
 function LevelBar({ ammo }) {
@@ -505,7 +505,7 @@ function LevelBar({ ammo }) {
         background: '#5a3208',
         boxShadow: '0 4px 0 rgba(0,0,0,0.45)',
         // Floored: below about thirty pixels the text inside stops fitting.
-        ...(touch ? { height: Math.max(30, Math.round(34 * scale)) } : null),
+      ...(touch ? { height: Math.max(28, Math.round(30 * scale)) } : null),
       }}
     >
       <div
@@ -515,7 +515,7 @@ function LevelBar({ ammo }) {
       <div className="absolute inset-x-3 top-1.5 h-2 rounded-full bg-white/30" />
       <div
         className={`relative flex h-full items-center justify-between text-white ${
-          touch ? 'gap-2 px-2.5 text-sm' : 'gap-3 px-5 text-3xl'
+          touch ? 'gap-2 px-2 text-xs' : 'gap-3 px-5 text-3xl'
         }`}
         style={OUTLINE}
       >
@@ -718,24 +718,24 @@ export function GameHUD() {
           <>
             <div className="flex w-full items-center justify-between gap-2 text-white" style={OUTLINE}>
               {/* Click popups fly to this element; the value bounces as it changes. */}
-              <span data-ammo-counter className="flex items-center gap-1 whitespace-nowrap text-base">
-                <AmmoIcon className="h-5 w-5" />
+              <span data-ammo-counter className="flex items-center gap-1 whitespace-nowrap text-sm">
+                <AmmoIcon className="h-4 w-4" />
                 <span key={ammo} className="power-bump">
                   {formatNumber(ammo)}
                 </span>{' '}
                 Ammo
               </span>
-              <span className="flex flex-col items-end text-[10px] leading-tight text-sky-300">
+              <span className="flex flex-col items-end text-[9px] leading-tight text-sky-300">
                 <span className="flex items-center gap-0.5">
-                  <ShoeIcon className="h-3 w-3" />
+                  <ShoeIcon className="h-2.5 w-2.5" />
                   Speed: {WALK_SPEED}
                 </span>
                 <span className="text-lime-300">{multiplier.toFixed(2)}x Power</span>
               </span>
             </div>
             <LevelBar ammo={ammo} />
-            {/* pt-3.5 leaves room for the price tags, which hang above each button. */}
-            <div className="pointer-events-auto flex gap-1.5 overflow-x-auto pt-3.5">
+            {/* Leave room for the price tags above the compact boost buttons. */}
+            <div className="pointer-events-auto flex justify-center gap-1 overflow-x-auto pt-3">
               {BOOSTS.map((def) => (
                 <BoostButton key={def.multiplier} def={def} now={now} />
               ))}
@@ -753,9 +753,9 @@ export function GameHUD() {
                   </span>
                   Ammo
                 </span>
-                <span className="flex flex-col items-end text-sm leading-tight text-sky-300">
+                <span className="flex flex-col items-end text-lg leading-tight text-sky-300">
                   <span className="flex items-center gap-1 whitespace-nowrap">
-                    <ShoeIcon className="h-4 w-4" />
+                    <ShoeIcon className="h-5 w-5" />
                     Speed: {WALK_SPEED}
                   </span>
                   <span className="whitespace-nowrap text-lime-300">{multiplier.toFixed(2)}x Power</span>

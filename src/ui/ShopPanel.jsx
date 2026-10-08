@@ -235,23 +235,65 @@ export function PromoStack() {
         touch ? 'right-2 top-28 gap-2' : 'right-4 top-1/2 -translate-y-1/2 gap-4'
       }`}
     >
-      {offers.map((pass) => (
-        <div key={pass.id} className="flex flex-col items-center">
-          <ShopButtonFace
-            colors={pass.id === 'power2x' ? ['#6fd2ff', '#1f8fe8'] : ['#fff07a', '#ffc21a']}
-            onClick={() => useGame.getState().buyPass(pass.id)}
-            className={touch ? 'px-3 py-1.5 text-lg' : 'px-6 py-4 text-4xl'}
+      {offers.map((pass) => {
+        const powerPass = pass.id === 'power2x'
+        const colors = powerPass ? ['#70dcff', '#1374d4'] : ['#fff27a', '#f0a000']
+        const accent = powerPass ? '#55c8ff' : '#ffd84a'
+        const buy = () => useGame.getState().buyPass(pass.id)
+
+        if (touch) {
+          return (
+            <div key={pass.id} className="w-32">
+              <ShopButtonFace
+                colors={colors}
+                onClick={buy}
+                className="flex h-10 w-full items-center justify-between gap-1 px-1.5 text-[11px]"
+              >
+                <span className="whitespace-nowrap">{pass.name}</span>
+                <span className="flex shrink-0 items-center gap-0.5 text-[10px] text-yellow-100">
+                  <Price item={pass} />
+                </span>
+              </ShopButtonFace>
+              <div className="mt-0.5 text-center text-[8px] text-amber-100" style={CHIP}>
+                PERMANENT
+              </div>
+            </div>
+          )
+        }
+
+        return (
+          <div
+            key={pass.id}
+            className="pointer-events-auto w-56 rounded-2xl border-2 p-1.5 shadow-xl backdrop-blur-sm"
+            style={{
+              borderColor: accent,
+              background: powerPass
+                ? 'linear-gradient(145deg, rgba(18, 71, 112, 0.96), rgba(12, 35, 65, 0.96))'
+                : 'linear-gradient(145deg, rgba(112, 76, 10, 0.97), rgba(54, 36, 7, 0.97))',
+              boxShadow: `0 0 16px ${powerPass ? 'rgba(55, 177, 255, 0.28)' : 'rgba(255, 190, 35, 0.28)'}, 0 6px 0 rgba(0,0,0,0.4)`,
+            }}
           >
-            {pass.name}
-          </ShopButtonFace>
-          <span className={`flex items-center gap-1 text-white ${touch ? 'text-[11px]' : 'text-lg'}`} style={OUTLINE}>
-            ONLY <Price item={pass} className="text-yellow-200" />
-          </span>
-          <span className={`text-orange-400 ${touch ? 'text-[10px]' : 'text-base'}`} style={OUTLINE}>
-            Permanent!
-          </span>
-        </div>
-      ))}
+            <ShopButtonFace
+              colors={colors}
+              onClick={buy}
+              className="w-full px-2 py-2 text-3xl"
+            >
+              {pass.name}
+            </ShopButtonFace>
+            <div className="mt-1.5 flex items-center justify-between rounded-lg border border-white/15 bg-black/25 px-2 py-1">
+              <span className="text-xs text-white/80" style={CHIP}>
+                ONLY
+              </span>
+              <span className="flex items-center gap-1 text-base text-yellow-200" style={OUTLINE}>
+                <Price item={pass} />
+              </span>
+            </div>
+            <div className="mt-1 text-center text-xs text-amber-200" style={CHIP}>
+              PERMANENT
+            </div>
+          </div>
+        )
+      })}
     </div>
   )
 }

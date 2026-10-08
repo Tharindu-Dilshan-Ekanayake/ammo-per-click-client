@@ -273,7 +273,7 @@ export const PlayerAvatar = forwardRef(function PlayerAvatar(
       {hand &&
         createPortal(
           <group scale={HELD_SCALE / fit.scale} rotation={HELD_ROTATION}>
-            <GunModel gun={gun} minGlow={HELD_MIN_GLOW} flashRef={gunFlash} local />
+            <GunModel gun={gun} minGlow={HELD_MIN_GLOW} flashRef={gunFlash} local={!remote} />
           </group>,
           hand,
         )}

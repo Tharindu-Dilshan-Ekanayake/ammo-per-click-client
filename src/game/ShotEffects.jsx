@@ -15,7 +15,6 @@ import { OPEN_HALF, SPACE_SPAWN } from './world/themes'
 const POOL = 10
 /** Bullet speed, in metres a second. Fast enough to read as instant, slow enough to see. */
 const BULLET_SPEED = 140
-const BULLET_LEN = 1.8
 const BULLET_W = 0.07
 /** How long a laser beam stays on screen, fading. */
 const BEAM_S = 0.12
@@ -125,17 +124,15 @@ export function ShotEffects({ bodyRef, anchorRef }) {
           streak.material.opacity = 1 - age / BEAM_S
         }
       } else {
-        const t = shot.flight > 0 ? age / shot.flight : 1
-        streak.visible = t < 1
+        // Keep a short muzzle-to-target tracer visible as a clear line. A tiny
+        // moving streak was easy to miss from the local third-person camera.
+        streak.visible = age < BEAM_S
         if (streak.visible) {
-          const len = Math.min(BULLET_LEN, dist)
-          // The streak's head runs from the muzzle to the target; its tail follows.
-          const head = Math.min(1, t + len / Math.max(dist, 0.001))
-          _mid.lerpVectors(shot.from, shot.to, (t + head) / 2)
+          _mid.addVectors(shot.from, shot.to).multiplyScalar(0.5)
           streak.position.copy(_mid)
           streak.lookAt(shot.to)
-          streak.scale.set(BULLET_W, BULLET_W, len)
-          streak.material.opacity = 1
+          streak.scale.set(BULLET_W, BULLET_W, dist)
+          streak.material.opacity = 1 - age / BEAM_S
         }
       }
 
