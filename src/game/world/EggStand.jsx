@@ -4,7 +4,6 @@ import { CuboidCollider, RigidBody } from '@react-three/rapier'
 import { useRef } from 'react'
 import { AdditiveBlending, BoxGeometry } from 'three'
 
-import { useBuxPrice } from '../../bloxity/prices'
 import { formatBonus, formatNumber } from '../format'
 import { useGame } from '../gameStore'
 import { getPet } from '../pets'
@@ -86,7 +85,6 @@ function EggModel({ egg }) {
  * @param {{ egg: object, position: number[] }} props
  */
 export function EggStand({ egg, position }) {
-  const bux = useBuxPrice(egg)
   const eggRef = useRef(null)
   const aura = useRef(null)
   const petRef = useRef(null)
@@ -178,21 +176,15 @@ export function EggStand({ egg, position }) {
                   { text: `x${formatBonus(pet.winsBonus)} Wins`, icon: 'trophy', fill: GOLD },
                   { text: equipped ? 'Following you' : 'Tap E to summon', scale: 0.85 },
                 ]
-              : egg.bux
-                ? [
-                    { text: 'VIP', scale: 0.75, fill: GEM },
-                    { text: egg.name, scale: 1.2 },
-                    { text: `${bux} Bux`, icon: 'bux', fill: GEM },
-                    { text: `Pet: x${formatBonus(pet.winsBonus)} Wins`, scale: 0.85, fill: '#9ff5c0' },
-                  ]
-                : [
+              : [
+                    ...(egg.vip ? [{ text: 'VIP', scale: 0.75, fill: GEM }] : []),
                     { text: egg.name, scale: 1.2 },
                     { text: `${formatNumber(egg.cost)} Wins`, icon: 'trophy', fill: GOLD },
                     { text: `Pet: x${formatBonus(pet.winsBonus)} Wins`, scale: 0.85, fill: '#9ff5c0' },
                   ]
           }
           position={[0, 0, 0]}
-          size={[3.6, egg.bux && !owned ? 2.4 : 2]}
+          size={[3.6, egg.vip && !owned ? 2.4 : 2]}
           style={{ width: 512 }}
         />
       </Billboard>
@@ -223,11 +215,7 @@ export function EggStand({ egg, position }) {
             position={[0, 1.8, 0]}
             action="Hatch"
             title={egg.name}
-            detail={
-              egg.bux
-                ? `💎 ${bux} Bux  ·  pet x${formatBonus(pet.winsBonus)} Wins`
-                : `🏆 ${formatNumber(egg.cost)} Wins  ·  pet x${formatBonus(pet.winsBonus)}`
-            }
+            detail={`🏆 ${formatNumber(egg.cost)} Wins  ·  pet x${formatBonus(pet.winsBonus)}`}
           />
         ))}
     </group>

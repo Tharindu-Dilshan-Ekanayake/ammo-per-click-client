@@ -257,6 +257,27 @@ export function useNearField(fields, band, radius) {
  * cached textures and geometry the originals used, so what they cost is a few
  * hundred small objects, once.
  */
+/**
+ * Has every material in the scene look its shader up again on its next draw (and,
+ * with `textures`, every texture re-upload). Cheap when nothing changed - three.js
+ * hands back the program it already has for the same settings - and the cure when
+ * something did: a program lost while the GPU was swamped at load, or the whole
+ * context lost and restored.
+ */
+export function refreshMaterials(scene, { textures = false } = {}) {
+  scene.traverse((object) => {
+    if (!object.material) return
+    for (const material of Array.isArray(object.material) ? object.material : [object.material]) {
+      material.needsUpdate = true
+      if (!textures) continue
+      for (const value of Object.values(material)) if (value?.isTexture) value.needsUpdate = true
+    }
+  })
+}
+
+/** Frames to wait after the warm-up before the refresh, so the world has shrunk by then. */
+const REFRESH_AFTER_FRAMES = 3
+
 export function ShaderWarmup({ onDone }) {
   const gl = useThree((s) => s.gl)
   const scene = useThree((s) => s.scene)
@@ -265,6 +286,8 @@ export function ShaderWarmup({ onDone }) {
   const step = useRef(0)
   /** The hidden holder, kept out of React so that nothing can unmount it. */
   const holder = useRef(null)
+  /** Frames left until the post-warm-up refresh; -1 while there is none due. */
+  const refreshIn = useRef(-1)
 
   useEffect(() => {
     // Only on a real teardown of the canvas; the world shrinking must not touch it.
@@ -282,6 +305,12 @@ export function ShaderWarmup({ onDone }) {
   }, [])
 
   useFrame(() => {
+    // Once the world has settled at its real size, every material it kept checks its
+    // shader again. On a GPU still busy linking the warm-up's programs, one of them
+    // could come out unusable, and everything drawn with it silently vanished - the
+    // ground, the sky, the blocks - leaving the game standing in empty air.
+    if (refreshIn.current >= 0 && refreshIn.current-- === 0) refreshMaterials(scene)
+
     const n = step.current++
     if (n > 1) return
 
@@ -299,7 +328,10 @@ export function ShaderWarmup({ onDone }) {
     }
 
     // However this goes, the world must not be left waiting on the warm-up.
-    const finish = () => onDone()
+    const finish = () => {
+      refreshIn.current = REFRESH_AFTER_FRAMES
+      onDone()
+    }
 
     try {
       const group = new Group()

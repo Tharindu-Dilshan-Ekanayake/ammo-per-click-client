@@ -436,8 +436,8 @@ export function PetsPanel() {
  * The Pets button on the HUD's left rail, with how many are out on its corner.
  *
  * Laid out in the flow of the counter column rather than pinned to a `top-`, so it
- * slides down of its own accord when the pet-bonus line or the Bux chip above it
- * appears. It used to be absolute, and the Bux chip landed on top of it.
+ * slides down of its own accord when the pet-bonus line above it appears. It used
+ * to be absolute, and the line landed on top of it.
  */
 export function PetsButton() {
   // Half size on a phone, so the left rail stops before the thumbstick starts.

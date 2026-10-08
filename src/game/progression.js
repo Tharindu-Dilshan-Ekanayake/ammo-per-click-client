@@ -25,7 +25,7 @@ export const levelMultiplier = (level) => 1 + ((level - 1) * 4) / (MAX_LEVEL - 1
  * faster each time - which is the only way a clicker keeps going once the last level
  * is reached and the bar has nowhere left to fill.
  *
- * Nothing else is touched. Wins, guns, pets, trainers and anything bought with Bux
+ * Nothing else is touched. Wins, guns, pets, trainers and every pass
  * all survive a rebirth, because losing something that was paid for would make the
  * button a trap rather than a reward.
  *

@@ -1,10 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 
-import { ALL_SKUS } from '../game/catalog'
 import { startCloudSave } from '../game/cloudSave'
 import { BloxityContext } from './BloxityContext'
-import { clearBalance, refreshBalance } from './bux'
-import { loadPrices } from './prices'
 import { applyPortalSettings, listenToPortalSettings } from './portalSettings'
 import { getSDK, safeCall, toUnsubscribe, waitForSDK } from './sdk'
 import { DEFAULT_PROPORTIONS, useBloxityStore } from './store'
@@ -123,10 +120,6 @@ export function BloxityProvider({ gameSlug, children }) {
             sdk.auth.onUserChanged((nextUser) => {
               useBloxityStore.getState().setUser(nextUser || null)
 
-              // Bux belongs to the account, so it arrives and leaves with the user.
-              // Fire and forget: the HUD chip shows "—" until the read lands.
-              if (nextUser) refreshBalance()
-              else clearBalance()
               // The guest identity is what the HUD falls back to when signed out.
               useBloxityStore
                 .getState()
@@ -173,8 +166,6 @@ export function BloxityProvider({ gameSlug, children }) {
           ),
         )
 
-        // The signs show the admin panel's prices, not the ones written in the code.
-        loadPrices(slug, ALL_SKUS)
         // Signed in, progress lives on the game server too (see game/cloudSave.js).
         startCloudSave()
 
