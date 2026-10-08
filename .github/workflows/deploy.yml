@@ -26,6 +26,23 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
+      # Fail in the first second, with the reason, rather than at the upload with an
+      # unexplained 404 or 401.
+      - name: Check the repo settings
+        env:
+          TOKEN: ${{ secrets.LEGION_DEPLOY_TOKEN }}
+          GAME_ID: ${{ vars.LEGION_GAME_ID }}
+          SLUG: ${{ vars.VITE_GAME_SLUG }}
+        run: |
+          missing=""
+          [ -n "$TOKEN" ] || missing="$missing secret LEGION_DEPLOY_TOKEN,"
+          [ -n "$GAME_ID" ] || missing="$missing variable LEGION_GAME_ID,"
+          [ -n "$SLUG" ] || missing="$missing variable VITE_GAME_SLUG,"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing in Settings -> Secrets and variables -> Actions:$missing"
+            exit 1
+          fi
+
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
