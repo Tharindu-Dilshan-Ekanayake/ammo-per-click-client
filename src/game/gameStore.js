@@ -2,8 +2,11 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
 import { isSignedIn, purchase, showLogin } from '../bloxity/bux'
+import { bossReward } from './boss'
 import { getEgg } from './eggs'
 import { formatBonus, formatNumber } from './format'
+import { DEFAULT_GUN, getGun } from './guns'
+import { AMMO_PACKS, getPass, passMultiplier } from './passes'
 import { getPet, MAX_EQUIPPED, PETS, petWinsMultiplier } from './pets'
 import {
   activeBoost,
@@ -16,94 +19,148 @@ import {
   rebirthMultiplier,
 } from './progression'
 import { playSound } from './sound'
-import { DEFAULT_SWORD, getSword } from './swords'
 import { getTrainer, rebirthsShort, TRAINERS } from './trainers'
-import { getPass } from './passes'
-import { padPower, padUnlocked, padWins, WALL_RESET_DELAY_S, WALLS_PER_STAGE, wallStage } from './walls'
+import {
+  isSpaceWall,
+  padAmmo,
+  padUnlocked,
+  padWins,
+  stageWins,
+  WALL_RESET_DELAY_S,
+  WALLS_PER_STAGE,
+  wallStage,
+} from './walls'
 
-/** Power for one click. Kept a whole number so the totals stay tidy. */
-export const clickGain = (sword, trainer, multiplier = 1) =>
-  Math.max(1, Math.round(sword.power * (trainer?.multiplier ?? 1) * multiplier))
+/** Ammo for one click. Kept a whole number so the totals stay tidy. */
+export const clickGain = (gun, trainer, multiplier = 1) =>
+  Math.max(1, Math.round(gun.ammo * (trainer?.multiplier ?? 1) * multiplier))
 
 /**
- * Level times any running boost times every rebirth earned: everything that
- * multiplies a click, bar training.
+ * Level times any running boost times every rebirth earned times the 2x Power pass:
+ * everything that multiplies a click, bar the target you are standing at.
  *
- * `rebirths` is read with a default so that a caller passing an older slice - or a
- * save from before rebirths existed - multiplies by one rather than by undefined.
+ * Every field is read with a default so that a caller passing a partial slice - the
+ * HUD passes only what it subscribes to - multiplies by one rather than by undefined.
  */
-export const powerMultiplier = ({ power, boost, rebirths = 0 }, now = Date.now()) =>
-  levelMultiplier(levelFor(power)) * (activeBoost(boost, now)?.multiplier ?? 1) * rebirthMultiplier(rebirths)
+export const powerMultiplier = ({ ammo = 0, boost = null, rebirths = 0, ownedPasses = [] }, now = Date.now()) =>
+  levelMultiplier(levelFor(ammo)) *
+  (activeBoost(boost, now)?.multiplier ?? 1) *
+  rebirthMultiplier(rebirths) *
+  passMultiplier(ownedPasses, 'power2x')
+
+/** Everything that multiplies a Wins payout: the pets following you and the 2x Wins pass. */
+export const winsMultiplier = ({ equippedPets = [], ownedPasses = [] }) =>
+  petWinsMultiplier(equippedPets) * passMultiplier(ownedPasses, 'wins2x')
+
+/**
+ * The stage whose Win pad Auto Wins pays out: the last one whose ten walls have all
+ * been broken at some point. 0 before stage 1 is cleared.
+ */
+export const clearedStage = (bestWall) => Math.floor(bestWall / WALLS_PER_STAGE)
+
+/** Seconds between Auto Wins payouts. */
+export const AUTO_WINS_S = 10
+
+/**
+ * Everything that is the player's progress, and nothing that is just this session.
+ * This is exactly what is saved - to localStorage, and to the game server when
+ * signed in (see game/cloudSave.js) - and the defaults are a brand new player.
+ */
+export const DEFAULT_PROGRESS = Object.freeze({
+  ammo: 0,
+  /** Rebirths completed. Every one is a permanent multiplier on every click. */
+  rebirths: 0,
+  wins: 0,
+  owned: [DEFAULT_GUN],
+  equipped: DEFAULT_GUN,
+  /** Ids of hatched eggs (one pet each — see pets.js). */
+  ownedPets: [],
+  /**
+   * Ids of the pets currently following the player, in the order they walk
+   * (first one leads). Their Wins bonuses add up — see petWinsMultiplier.
+   */
+  equippedPets: [],
+  unlockedTrainers: [TRAINERS[0].id],
+  /** Highest lobby stage wall ever broken (0 = none). */
+  bestWall: 0,
+  /** Highest Space World wall ever broken, counted from 1 (0 = none). */
+  spaceBest: 0,
+  /** Highest wall number ever reached in the Infinity Cave (0 = none). */
+  caveBest: 0,
+  /** The level of the next boss to fight; one higher after every win. */
+  bossLevel: 1,
+  /** Running power boost: `{ multiplier, until }` (until in ms), or null. */
+  boost: null,
+  /** Whether the OP Auto Clicker has been bought. */
+  opAutoOwned: false,
+  /**
+   * Ids of the Bux passes the player owns (see game/passes.js).
+   *
+   * Signed in, the game server is the authority on these: its purchase webhook
+   * records every pass bought, and the progress it hands back on load always
+   * carries them (see server/src/progress.js). Signed out, nothing can be bought.
+   */
+  ownedPasses: [],
+  /** Whether Auto Wins is switched on (it only runs once the pass is owned). */
+  autoWins: false,
+})
+
+/** The keys of DEFAULT_PROGRESS, which is the list of what gets saved. */
+export const PROGRESS_KEYS = Object.keys(DEFAULT_PROGRESS)
+
+/** Just the progress out of a full store snapshot. */
+export const pickProgress = (state) => Object.fromEntries(PROGRESS_KEYS.map((key) => [key, state[key]]))
 
 const MESSAGE_MS = 2600
 /** Matches the `click-popup` animation in index.css. */
-const POPUP_MS = 1000
+const POPUP_MS = 1100
 let messageId = 0
 let popupId = 0
 
 /**
- * Player progress. Saved to localStorage for now; move it to the server before
- * Wins or Power are worth anything, since the browser can edit this freely.
+ * Player progress, plus the session state around it.
+ *
+ * Saved to localStorage on every change, and - while signed in - to the game server
+ * as well, which is what brings it back on another device or after the browser's
+ * storage is cleared. See game/cloudSave.js for when each one wins.
  *
  * Readable outside React (e.g. in useFrame) via `useGame.getState()`.
  */
 export const useGame = create(
   persist(
     (set, get) => ({
-      power: 0,
-      /** Rebirths completed. Every one is a permanent multiplier on every click. */
-      rebirths: 0,
-      wins: 0,
-      owned: [DEFAULT_SWORD],
-      equipped: DEFAULT_SWORD,
-      /** Ids of hatched eggs (one pet each — see pets.js). */
-      ownedPets: [],
+      ...DEFAULT_PROGRESS,
       /**
-       * Ids of the pets currently following the player, in the order they walk
-       * (first one leads). Their Wins bonuses add up — see petWinsMultiplier.
+       * Whose progress this is: the Bloxity user id it was loaded for or saved as,
+       * or null for a guest's. Lets cloudSave tell a guest's run (which a first
+       * sign-in adopts) from someone else's (which it never does).
        */
-      equippedPets: [],
-      /** Whether the Pets panel is open. Not saved: it starts closed every session. */
-      /** Whether the Rebirth panel is open. */
+      ownerId: null,
+      /** The server's revision of the save this state was last synced with. */
+      syncedRev: 0,
+
+      /** Whether the Rebirth panel is open. Not saved: it starts closed every session. */
       rebirthOpen: false,
+      /** Whether the Pets panel is open. */
       petsOpen: false,
-      /** Whether the Controls panel is open. Also not saved. */
+      /** Whether the Bux shop is open. */
+      shopOpen: false,
+      /** Whether the Controls panel is open. */
       controlsOpen: false,
       /** Which pet's card the Pets panel is showing on the right, or null. */
       petsSelected: null,
-      unlockedTrainers: [TRAINERS[0].id],
-      /** Highest stage wall ever broken (0 = none). */
-      bestWall: 0,
-      /** Highest wall number ever reached in the Infinity Cave (0 = none). */
-      caveBest: 0,
-      /** Running power boost: `{ multiplier, until }` (until in ms), or null. */
-      boost: null,
-      /** Whether the OP Auto Clicker has been bought. */
-      opAutoOwned: false,
-      /**
-       * Ids of the Bux passes the player owns (see game/passes.js).
-       *
-       * SECURITY: this is the only record of a real-money purchase, and it lives in
-       * the same localStorage blob as everything else here, so a player can grant
-       * themselves a pass by editing it. The Bloxity SDK has no entitlement lookup
-       * to check against, so the fix is the game's own server: have the IAP webhook
-       * record the purchase against the user id and have the Colyseus room hand the
-       * owned passes back on join, exactly like `power` and `wins` will move server
-       * side. Until then treat this as convenience, not proof.
-       */
-      ownedPasses: [],
       /** True while a Bux purchase modal is open, so a held E can't start a second. */
       purchasing: false,
 
-      /** Id of the training dummy whose pad the player is standing on, or null. */
+      /** Id of the target whose pad the player is standing on, or null. */
       activeTrainer: null,
-      /** Yaw the player turns to while training, so they face the dummy. */
+      /** Yaw the player turns to while training, so they face the target. */
       trainYaw: Math.PI,
-      /** What the E key acts on: `{ kind: 'sword' | 'egg' | 'pad' | 'trainer', id }`, or null. */
+      /** What the E key acts on: `{ kind: 'gun' | 'egg' | 'pad' | 'trainer', id }`, or null. */
       interact: null,
       /** `performance.now()` seconds when E started being held, or null. */
       holdingSince: null,
-      /** The stage wall within sword reach: `{ number, z }` (z of its centre), or null. */
+      /** The stage wall within range: `{ number, z }` (z of its centre), or null. */
       nearWall: null,
       /** Walls broken this run, `{ [number]: true }`; cleared back in the lobby. */
       brokenWalls: {},
@@ -111,13 +168,15 @@ export const useGame = create(
       wallsResetAt: null,
       /** Which auto clicker is running: 'off' | 'normal' | 'op'. */
       autoClick: 'off',
-      /** Player position `[x, y, z]` at the last swing, so a wall knows which side was hit. */
-      swingPos: null,
-      /** "⚔ +N" popups flying to the Power counter: `{ id, gain, x, y, dx, dy }`. */
+      /** Whether the player is inside the boss arena (see world/BossArena.jsx). */
+      inBossArena: false,
+      /** Player position `[x, y, z]` at the last shot, so a wall knows which side was hit. */
+      shotPos: null,
+      /** "+N Ammo" popups flying to the Ammo counter: `{ id, gain, x, y, dx, dy }`. */
       popups: [],
-      /** `performance.now()` seconds of the last swing; drives the arm animation. */
-      swingAt: -Infinity,
-      /** Power gained by the last swing, for the dummy's "+N" popup. */
+      /** `performance.now()` seconds of the last shot; drives the recoil and the hits. */
+      shotAt: -Infinity,
+      /** Ammo gained by the last shot, for the target's "+N" popup and boss damage. */
       lastGain: 0,
       /** Latest toast: `{ text, tone: 'info'|'success'|'error', id }`. */
       message: null,
@@ -133,19 +192,19 @@ export const useGame = create(
       },
 
       /**
-       * One swing of the equipped sword: gain its power, times training, level and
-       * boost. `popup` (`{ x, y, dx, dy }` in screen pixels) sends a "⚔ +N" flying
-       * from (x, y) by (dx, dy), to the Power counter. `at` is the player's position,
-       * if known.
+       * One shot of the equipped gun: gain its Ammo, times the target, level, boost,
+       * rebirths and passes. `popup` (`{ x, y, dx, dy }` in screen pixels) sends a
+       * "+N" flying from (x, y) by (dx, dy), to the Ammo counter. `at` is the
+       * player's position, if known.
        */
-      swing: (popup, at) => {
+      shoot: (popup, at) => {
         const state = get()
-        const gain = clickGain(getSword(state.equipped), getTrainer(state.activeTrainer), powerMultiplier(state))
+        const gain = clickGain(getGun(state.equipped), getTrainer(state.activeTrainer), powerMultiplier(state))
         const next = {
-          power: state.power + gain,
+          ammo: state.ammo + gain,
           lastGain: gain,
-          swingAt: performance.now() / 1000,
-          swingPos: at ?? null,
+          shotAt: performance.now() / 1000,
+          shotPos: at ?? null,
         }
         if (popup) {
           const id = ++popupId
@@ -157,9 +216,9 @@ export const useGame = create(
       },
 
       /**
-       * Stepping onto a dummy's pad: train if it's unlocked. A locked one only offers
+       * Stepping onto a target's pad: train if it's unlocked. A locked one only offers
        * itself with an E prompt (see unlockTrainer); nothing is spent just by
-       * walking over it. `faceYaw` is the yaw that points the player at the dummy.
+       * walking over it. `faceYaw` is the yaw that points the player at the target.
        */
       enterTrainer: (id, faceYaw = Math.PI) => {
         if (!getTrainer(id)) return
@@ -170,7 +229,7 @@ export const useGame = create(
         set({ activeTrainer: id, trainYaw: faceYaw })
       },
 
-      /** E on a locked training pad: buy it if affordable, then start training on it. */
+      /** E on a locked target's pad: buy it if affordable, then start training on it. */
       unlockTrainer: (id) => {
         const { unlockedTrainers, wins, rebirths, interact, notify } = get()
         const trainer = getTrainer(id)
@@ -180,13 +239,10 @@ export const useGame = create(
         // that would not have been enough anyway.
         const short = rebirthsShort(trainer, rebirths)
         if (short > 0) {
-          notify(
-            `${trainer.multiplier}x training needs ${trainer.rebirths} Rebirths - ${short} to go`,
-            'error',
-          )
+          notify(`${trainer.name} needs ${trainer.rebirths} Rebirths - ${short} to go`, 'error')
           return
         }
-        // The two VIP dummies are bought with Bux, and start training straight away.
+        // The two VIP targets are bought with Bux, and start training straight away.
         if (trainer.bux) {
           return get().buyWithBux(trainer, () => ({
             unlockedTrainers: [...get().unlockedTrainers, id],
@@ -195,7 +251,7 @@ export const useGame = create(
           }))
         }
         if (wins < trainer.cost) {
-          notify(`Need ${formatNumber(trainer.cost - wins)} more Wins to unlock ${trainer.multiplier}x training`, 'error')
+          notify(`Need ${formatNumber(trainer.cost - wins)} more Wins to unlock the ${trainer.name}`, 'error')
           return
         }
         set({
@@ -204,7 +260,7 @@ export const useGame = create(
           activeTrainer: id,
           interact: interact?.kind === 'trainer' && interact.id === id ? null : interact,
         })
-        notify(`Unlocked ${trainer.multiplier}x training!`, 'success')
+        notify(`Unlocked the ${trainer.name} - ${trainer.multiplier}x Ammo!`, 'success')
         playSound('unlock')
       },
 
@@ -213,7 +269,7 @@ export const useGame = create(
         get().clearInteract('trainer', id)
       },
 
-      /** A sword, egg, Win pad or locked training pad came into E range. */
+      /** A gun, egg, Win pad or locked target came into E range. */
       setInteract: (kind, id) => set({ interact: { kind, id }, holdingSince: null }),
       /** It went out of range; ignored if something else has taken over since. */
       clearInteract: (kind, id) => {
@@ -223,7 +279,7 @@ export const useGame = create(
       /** E pressed (or the prompt clicked): act on whatever is in range. */
       interactNow: () => {
         const target = get().interact
-        if (target?.kind === 'sword') get().pickSword(target.id)
+        if (target?.kind === 'gun') get().pickGun(target.id)
         else if (target?.kind === 'egg') get().hatchEgg(target.id)
         else if (target?.kind === 'trainer') get().unlockTrainer(target.id)
       },
@@ -254,7 +310,7 @@ export const useGame = create(
           return
         }
 
-        // The Seraph egg is bought with Bux; its pet comes out following you.
+        // The Exclusive egg is bought with Bux; its pet comes out following you.
         if (egg.bux) {
           return get().buyWithBux(egg, () => ({
             ownedPets: [...get().ownedPets, id],
@@ -344,74 +400,80 @@ export const useGame = create(
 
       toggleRebirthPanel: (open) => set((s) => ({ rebirthOpen: open ?? !s.rebirthOpen })),
 
+      toggleShop: (open) => set((s) => ({ shopOpen: open ?? !s.shopOpen })),
+
       /** Open or close the Controls panel (the HUD's Controls button, and Escape). */
       toggleControlsPanel: (open) => set((s) => ({ controlsOpen: open ?? !s.controlsOpen })),
 
       /**
-       * Spend every point of Power for a permanent multiplier on every future click.
+       * Spend all your Ammo for a permanent multiplier on every future click.
        *
-       * Only `power` is given up. Wins, swords, pets, trainers, boosts and anything
+       * Only `ammo` is given up. Wins, guns, pets, targets, boosts and anything
        * bought with Bux are all left exactly as they were - a button that took back
        * something the player had paid for would be a trap, and this one is meant to
        * be pressed.
        *
        * Guarded rather than trusted: the panel disables the button when it cannot be
        * afforded, but the check lives here too, so no path into this - a stale panel,
-       * a double click, a future auto-rebirth - can zero someone's Power for nothing.
+       * a double click, a future auto-rebirth - can zero someone's Ammo for nothing.
        */
       rebirth: () => {
-        const { power, rebirths, notify } = get()
-        if (!canRebirth(power, rebirths)) return
+        const { ammo, rebirths, notify } = get()
+        if (!canRebirth(ammo, rebirths)) return
         const next = rebirths + 1
-        set({ power: 0, rebirths: next, rebirthOpen: false })
+        set({ ammo: 0, rebirths: next, rebirthOpen: false })
         playSound('unlock')
         notify(`Rebirth ${next}! Every click is now x${rebirthMultiplier(next)} Power`, 'success')
       },
 
       /**
-       * E at a sword pad: equip it if owned, otherwise try to buy it.
+       * E at a gun pad: equip it if owned, otherwise try to buy it.
        *
-       * Returns a promise only for the Bux blades, whose purchase is a round trip
+       * Returns a promise only for the Bux guns, whose purchase is a round trip
        * through the portal; the Wins path is synchronous and returns nothing.
        */
-      pickSword: (id) => {
+      pickGun: (id) => {
         const { owned, equipped, wins, notify } = get()
-        const sword = getSword(id)
+        const gun = getGun(id)
         if (equipped === id) {
-          notify(`${sword.name} is already equipped`)
+          notify(`${gun.name} is already equipped`)
           return
         }
         if (owned.includes(id)) {
           set({ equipped: id })
-          notify(`Equipped ${sword.name}`)
+          notify(`Equipped ${gun.name}`)
           playSound('equip')
           return
         }
-        // The two VIP blades are bought with Bux, not Wins, and come equipped. The
+        // The two VIP guns are bought with Bux, not Wins, and come equipped. The
         // promise is handed back rather than dropped: the E key does not care, but a
         // caller that wants to know when the modal closed can wait for it.
-        if (sword.bux) {
-          return get().buyWithBux(sword, () => ({ owned: [...get().owned, id], equipped: id }))
+        if (gun.bux) {
+          return get().buyWithBux(gun, () => ({ owned: [...get().owned, id], equipped: id }))
         }
-        if (wins < sword.cost) {
-          notify(`Need ${formatNumber(sword.cost - wins)} more Wins for ${sword.name}`, 'error')
+        if (wins < gun.cost) {
+          notify(`Need ${formatNumber(gun.cost - wins)} more Wins for the ${gun.name}`, 'error')
           return
         }
-        set({ wins: wins - sword.cost, owned: [...owned, id], equipped: id })
-        notify(`Bought ${sword.name}! +${formatNumber(sword.power)} Power per click`, 'success')
+        set({ wins: wins - gun.cost, owned: [...owned, id], equipped: id })
+        notify(`Bought the ${gun.name}! +${formatNumber(gun.ammo)} Ammo per click`, 'success')
         playSound('unlock')
       },
 
-      /** Came within sword reach of a stage wall (`z`: the z of its centre). */
+      /** Came within range of a stage wall (`z`: the z of its centre). */
       setNearWall: (number, z) => set({ nearWall: { number, z } }),
-      /** Left its reach; ignored if another wall has taken over since. */
+      /** Left its range; ignored if another wall has taken over since. */
       clearNearWall: (number) => {
         if (get().nearWall?.number === number) set({ nearWall: null })
       },
 
       /** A stage wall's health hit zero (see StageWall, which tracks the damage). */
       breakWall: (number) => {
-        const { brokenWalls, bestWall, notify } = get()
+        const { brokenWalls, bestWall, spaceBest, notify } = get()
+        if (isSpaceWall(number)) {
+          set({ brokenWalls: { ...brokenWalls, [number]: true }, spaceBest: Math.max(spaceBest, number - 1000) })
+          return
+        }
         set({ brokenWalls: { ...brokenWalls, [number]: true }, bestWall: Math.max(bestWall, number) })
         if (number > 1 && (number - 1) % WALLS_PER_STAGE === 0) {
           notify(`Stage ${wallStage(number)} reached!`, 'success')
@@ -419,8 +481,8 @@ export const useGame = create(
         }
       },
       /**
-       * Back in the lobby with walls still broken: starts the rebuild countdown
-       * (a no-op if one's already running, or nothing is broken). See WallField.
+       * Back in a lobby with walls still broken: starts the rebuild countdown
+       * (a no-op if one's already running, or nothing is broken). See WallReset.
        */
       scheduleWallReset: () => {
         const { brokenWalls, wallsResetAt } = get()
@@ -447,30 +509,45 @@ export const useGame = create(
        */
       breakCaveWall: (number, gain) =>
         set((state) => ({
-          wins: state.wins + Math.round(gain * petWinsMultiplier(state.equippedPets)),
+          wins: state.wins + Math.round(gain * winsMultiplier(state)),
           caveBest: Math.max(state.caveBest, number),
         })),
 
       /**
-       * Held E long enough on a Win pad: pay out and rebuild the walls. Returns the
-       * Wins gained, or 0 if Power is too low; the pad then sends the player home.
+       * Held E long enough on a Win pad: pay out. Returns the Wins gained, or 0 if
+       * the pad is shut; the pad then sends the player home.
        */
       claimPad: (number, pad) => {
         const state = get()
-        const { wins, equippedPets, notify } = state
+        const { wins, notify } = state
         if (!padUnlocked(number, pad, state)) {
           if (pad.pass) notify(`${getPass(pad.pass).name} needed for this pad`, 'error')
-          else notify(`Need ${formatNumber(padPower(number, pad))} Power for this Win pad`, 'error')
+          else notify(`Need ${formatNumber(padAmmo(number, pad))} Ammo for this Win pad`, 'error')
           return 0
         }
-        const bonus = petWinsMultiplier(equippedPets)
+        const bonus = winsMultiplier(state)
         const gain = Math.round(padWins(number, pad) * bonus)
-        // Walls stay broken a little longer; WallField starts their rebuild countdown
+        // Walls stay broken a little longer; WallReset starts their rebuild countdown
         // once we've actually arrived back in the lobby (see scheduleWallReset).
         set({ wins: wins + gain, nearWall: null, interact: null, holdingSince: null })
-        const petNote = bonus > 1 ? ` (pets x${formatBonus(bonus)})` : ''
-        notify(`+${formatNumber(gain)} Wins${petNote}! Back to the lobby`, 'success')
+        const note = bonus > 1 ? ` (x${formatBonus(bonus)})` : ''
+        notify(`+${formatNumber(gain)} Wins${note}! Back to the lobby`, 'success')
         playSound('win')
+        return gain
+      },
+
+      /** Walked into or out of the boss arena. */
+      setInBossArena: (inside) => {
+        if (get().inBossArena !== inside) set({ inBossArena: inside })
+      },
+
+      /** The boss's health hit zero (see world/Boss.jsx): pay out and line up the next. */
+      defeatBoss: (level) => {
+        const state = get()
+        if (level !== state.bossLevel) return 0
+        const gain = Math.round(bossReward(level) * winsMultiplier(state))
+        set({ wins: state.wins + gain, bossLevel: level + 1 })
+        state.notify(`Boss ${level} defeated! +${formatNumber(gain)} Wins`, 'success')
         return gain
       },
 
@@ -499,36 +576,68 @@ export const useGame = create(
        * Buys a Bux pass (see game/passes.js). The SDK draws the confirm modal and
        * takes the payment; all we do is wait for its answer and unlock on success.
        *
-       * Async, unlike every other buy here, because a real payment is a round trip
-       * through the portal. `purchasing` keeps a held E from opening a second modal
-       * behind the first.
-       *
        * @returns {Promise<boolean>} whether the pass is now owned
        */
       buyPass: (id) => {
         const pass = getPass(id)
         if (!pass) return Promise.resolve(false)
         if (get().ownedPasses.includes(id)) return Promise.resolve(true)
-        return get().buyWithBux(pass, () => ({ ownedPasses: [...get().ownedPasses, id] }))
+        return get().buyWithBux(pass, () => ({
+          ownedPasses: [...get().ownedPasses, id],
+          // Auto Wins is no use bought and switched off.
+          ...(id === 'autoWins' ? { autoWins: true } : null),
+        }))
+      },
+
+      /** Buys one of the Ammo packs and drops it straight onto the counter. */
+      buyAmmoPack: (id) => {
+        const pack = AMMO_PACKS.find((p) => p.id === id)
+        if (!pack) return Promise.resolve(false)
+        return get().buyWithBux(pack, () => ({ ammo: get().ammo + pack.amount }), `+${pack.name}!`)
+      },
+
+      /** Switches Auto Wins on or off; offers the pass if it isn't owned yet. */
+      toggleAutoWins: () => {
+        const { ownedPasses, autoWins } = get()
+        if (!ownedPasses.includes('autoWins')) return get().buyPass('autoWins')
+        set({ autoWins: !autoWins })
+        playSound('click')
       },
 
       /**
-       * The shared front half of every Bux purchase: the VIP Win pad, the two Bux
-       * blades, the Seraph egg and the two VIP dummies all come through here.
+       * One Auto Wins payout: the gold pad of the deepest stage ever cleared, with
+       * every Wins multiplier on it. Called on a timer by the HUD while it is on.
+       */
+      collectAutoWins: () => {
+        const state = get()
+        if (!state.autoWins || !state.ownedPasses.includes('autoWins')) return 0
+        const stage = clearedStage(state.bestWall)
+        if (stage === 0) return 0
+        const gain = Math.round(stageWins(stage) * winsMultiplier(state))
+        set({ wins: state.wins + gain })
+        return gain
+      },
+
+      /**
+       * The shared front half of every Bux purchase: the passes, the Ammo packs, the
+       * two Bux guns, the Exclusive egg and the two VIP targets all come through here.
        *
        * The SDK owns the whole payment - it prices the SKU server-side, draws the
        * confirm modal and takes the Bux - so all this does is check somebody is
-       * signed in, wait for the answer, and hand the result to `grant`.
+       * signed in, wait for the answer, and hand the result to `grant`. The game
+       * server hears about the purchase separately, from Bloxity's webhook, and
+       * records it against the account (see server/src/routes.js).
        *
        * Async, unlike every other buy in this store, because a real payment is a
        * round trip through the portal. `purchasing` keeps a held E (or a second
        * click) from opening a modal behind the one already up.
        *
-       * @param {{ sku: string, name: string, bux?: number }} item
+       * @param {{ sku: string, name: string, id: string }} item
        * @param {() => object} grant returns the state patch that hands the item over
-       * @returns {Promise<boolean>} whether the player now owns it
+       * @param {string} [done] the toast on success; "<name> unlocked!" by default
+       * @returns {Promise<boolean>} whether the player now has it
        */
-      buyWithBux: async (item, grant) => {
+      buyWithBux: async (item, grant, done) => {
         const { purchasing, notify } = get()
         if (!item?.sku) return false
         if (purchasing) return false
@@ -552,7 +661,7 @@ export const useGame = create(
           // grant() re-reads the store on purpose: the await above spans a modal,
           // so anything captured before it is stale by now.
           set(grant())
-          notify(`${item.name} unlocked!`, 'success')
+          notify(done ?? `${item.name} unlocked!`, 'success')
           playSound('unlock')
           return true
         } finally {
@@ -582,54 +691,28 @@ export const useGame = create(
         }
         set({ autoClick: kind })
       },
+
+      /**
+       * Replaces the whole of the player's progress - a save loaded from the server,
+       * or a fresh start on signing out. Session state (where you stand, what is
+       * open) is left alone, apart from anything that pointed at what just changed.
+       */
+      loadProgress: (progress, { ownerId = null, syncedRev = 0 } = {}) =>
+        set({
+          ...DEFAULT_PROGRESS,
+          ...progress,
+          ownerId,
+          syncedRev,
+          activeTrainer: null,
+          interact: null,
+          holdingSince: null,
+          popups: [],
+        }),
     }),
     {
-      name: 'ppc-progress',
-      version: 4,
-      migrate: (state, version) => {
-        if (!state) return state
-        let next = state
-        // v1 had a single `equippedPet`; pets come in squads now.
-        if (version < 2) {
-          const { equippedPet, ...rest } = next
-          next = { ...rest, equippedPets: equippedPet ? [equippedPet] : [] }
-        }
-        // v2 predates Bux passes, so nobody who saved it owns one.
-        if (version < 3) next = { ...next, ownedPasses: [] }
-        // v3 predates rebirths. Everyone who saved it starts at none, which is the
-        // same x1 they have been playing with - nothing they earned changes value.
-        if (version < 4) next = { ...next, rebirths: 0 }
-        return next
-      },
-      partialize: ({
-        power,
-        rebirths,
-        wins,
-        owned,
-        equipped,
-        ownedPets,
-        equippedPets,
-        unlockedTrainers,
-        bestWall,
-        caveBest,
-        boost,
-        opAutoOwned,
-        ownedPasses,
-      }) => ({
-        power,
-        rebirths,
-        wins,
-        owned,
-        equipped,
-        ownedPets,
-        equippedPets,
-        unlockedTrainers,
-        bestWall,
-        caveBest,
-        boost,
-        opAutoOwned,
-        ownedPasses,
-      }),
+      name: 'apc-progress',
+      version: 1,
+      partialize: (state) => ({ ...pickProgress(state), ownerId: state.ownerId, syncedRev: state.syncedRev }),
     },
   ),
 )

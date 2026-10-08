@@ -27,10 +27,21 @@ export const LIGHT_Z = 2
  * so that was a recompile of the whole scene on the way out and another on the way
  * back, which is most of what made walking anywhere stutter.
  *
- * @param {{ position: number[], rotationY?: number, target: number[], requiresWall?: number }} props
- *   With `requiresWall`, it only works once that stage wall has been broken.
+ * @param {{ position: number[], rotationY?: number, target: number[], requiresWall?: number,
+ *           requiresRebirths?: number, name?: string, color?: string }} props
+ *   With `requiresWall`, it only works once that stage wall has been broken; with
+ *   `requiresRebirths`, once the player has rebirthed that many times. `name` is
+ *   what the refusal calls the place, and `color` tints the halo.
  */
-export function Portal({ position, rotationY = 0, target, requiresWall = 0 }) {
+export function Portal({
+  position,
+  rotationY = 0,
+  target,
+  requiresWall = 0,
+  requiresRebirths = 0,
+  name = 'this portal',
+  color = '#b35cff',
+}) {
   const front = useRef(null)
   const back = useRef(null)
   const halo = useRef(null)
@@ -45,7 +56,12 @@ export function Portal({ position, rotationY = 0, target, requiresWall = 0 }) {
     if (other.rigidBodyObject?.name !== 'player' || !other.rigidBody) return
     const game = useGame.getState()
     if (game.bestWall < requiresWall) {
-      game.notify(`Break wall ${requiresWall} to unlock this portal`, 'error')
+      game.notify(`Break wall ${requiresWall} to unlock ${name}`, 'error')
+      return
+    }
+    if (game.rebirths < requiresRebirths) {
+      const short = requiresRebirths - game.rebirths
+      game.notify(`${name} needs Rebirth ${requiresRebirths} - ${short} more to go!`, 'error')
       return
     }
     other.rigidBody.setTranslation({ x: target[0], y: target[1], z: target[2] }, true)
@@ -84,7 +100,7 @@ export function Portal({ position, rotationY = 0, target, requiresWall = 0 }) {
         <meshBasicMaterial
           ref={halo}
           map={radialGlowTexture()}
-          color="#b35cff"
+          color={color}
           transparent
           blending={AdditiveBlending}
           depthWrite={false}

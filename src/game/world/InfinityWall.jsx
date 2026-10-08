@@ -32,7 +32,7 @@ const BAR_H = BAR_W / HP_BAR_ASPECT
 const BAR_Y = OPEN_H * 0.36
 
 const REACH = 3.2
-const HIT_DELAY_S = 0.12
+const HIT_DELAY_S = 0.06
 const SHAKE_S = 0.25
 const FLASH_S = 0.2
 const WEAK_HIT = 0.1
@@ -49,7 +49,7 @@ const _e = new Euler()
 const _c = new Color()
 
 /**
- * The Infinity Cave's one wall: hit it with your sword like any stage wall, and
+ * The Infinity Cave's one wall: shoot it like any stage wall, and
  * the moment it breaks a fresh one — one number higher, a little tougher, its look
  * cycled from the game's own stage themes — takes its place right where it stood.
  * Wins pay out directly on every break; there's nothing to walk through to.
@@ -154,7 +154,7 @@ export function InfinityWall({ position = [0, 0, 0] }) {
     s.nextPopup = (i + 1) % POPUP_COUNT
     s.popupAt[i] = now
     s.popupX[i] = s.hitX + (Math.random() - 0.5) * 1.5
-    popupLabels[i].draw({ lines: [{ text: `-${formatNumber(damage)}`, icon: 'sword', fill: ['#ffffff', '#ffb347'] }] })
+    popupLabels[i].draw({ lines: [{ text: `-${formatNumber(damage)}`, icon: 'ammo', fill: ['#ffffff', '#ffb347'] }] })
   }
 
   useFrame(({ camera, clock }, delta) => {
@@ -162,16 +162,16 @@ export function InfinityWall({ position = [0, 0, 0] }) {
     const s = fx.current
     const game = useGame.getState()
 
-    if (s.near && game.swingAt > s.seenSwing && now - game.swingAt < 0.2) {
-      s.seenSwing = game.swingAt
-      s.impactAt = game.swingAt + HIT_DELAY_S
-      const at = game.swingPos
+    if (s.near && game.shotAt > s.seenSwing && now - game.shotAt < 0.2) {
+      s.seenSwing = game.shotAt
+      s.impactAt = game.shotAt + HIT_DELAY_S
+      const at = game.shotPos
       s.hitX = at ? Math.max(-OPEN_HALF + 1.5, Math.min(OPEN_HALF - 1.5, at[0])) : 0
     }
 
     if (s.impactAt && now >= s.impactAt) {
       s.impactAt = 0
-      const damage = game.power
+      const damage = game.ammo
       s.hp -= damage
       s.hitAt = now
       spawnDebris(s, now, 6, false)
@@ -192,7 +192,7 @@ export function InfinityWall({ position = [0, 0, 0] }) {
         playSound('wallHit', { strength: Math.min(1, (damage / maxHp) * 4) })
         if (damage < maxHp * WEAK_HIT && now - s.warnedAt > 2) {
           s.warnedAt = now
-          game.notify(`This wall needs about ${formatNumber(Math.ceil(maxHp * WEAK_HIT))} Power to dent`, 'error')
+          game.notify(`This wall needs about ${formatNumber(Math.ceil(maxHp * WEAK_HIT))} Ammo to dent`, 'error')
         }
       }
     }

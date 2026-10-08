@@ -1,6 +1,6 @@
 /**
- * Eggs shown in the lobby's egg zone. Display only for now: hatching pets isn't
- * built yet.
+ * Eggs in the lobby's egg zone. Hatching one spends Wins (or Bux, for the VIP egg)
+ * and gives its pet for good - see pets.js.
  *
  * cost:   Wins to hatch one
  * colors: [base, accent] for the voxel egg
@@ -24,7 +24,7 @@ export const EGGS = [
   { id: 'rainbow', name: 'Rainbow Egg', cost: 10000000, colors: ['#ff4fd8', '#7ff9ff'], glow: 0.8 },
 
   // --- The Bux egg. Its pet carries the best Wins bonus in the game (see pets.js).
-  { id: 'seraph', name: 'Seraph Egg', bux: 199, sku: 'egg_seraph', colors: ['#fff4cf', '#ffc94a'], glow: 0.9 },
+  { id: 'exclusive', name: 'Exclusive Egg', bux: 199, sku: 'egg_exclusive', colors: ['#bfe4ff', '#3f7cff'], glow: 0.9 },
 ]
 
 /** The egg on the VIP platform. */

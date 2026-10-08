@@ -3,11 +3,12 @@ import { useEffect, useRef } from 'react'
 import { Vector3 } from 'three'
 
 import { useGame } from './gameStore'
-import { takeSwings } from './input'
+import { getGun, shotKind } from './guns'
+import { takeShots } from './input'
 import { AUTO_CLICKERS } from './progression'
 import { playSound } from './sound'
 
-/** Seconds between automatic swings while standing on a training pad. */
+/** Seconds between automatic shots while standing on a target's pad. */
 const AUTO_TRAIN_S = 0.4
 /**
  * How far a finger may slide and still count as a tap rather than the start of a
@@ -20,31 +21,37 @@ const AUTO_TRAIN_S = 0.4
  * between the two events is the jank, not the player: the first measurement of it
  * here came out at 624ms for what was meant to be an instant tap. Nothing else on
  * the view wants a long press, so resting a finger and lifting it can simply be a
- * swing, however long the rest lasted.
+ * shot, however long the rest lasted.
  */
 const TAP_SLOP_PX = 14
 const _screen = new Vector3()
 
 /**
- * A click popup's start point and how far it flies to reach the HUD's Power counter,
+ * A click popup's start point and how far it flies to reach the HUD's Ammo counter,
  * in screen pixels.
  */
 function popupPath(x, y) {
-  const counter = document.querySelector('[data-power-counter]')?.getBoundingClientRect()
+  const counter = document.querySelector('[data-ammo-counter]')?.getBoundingClientRect()
   const tx = counter ? counter.left + counter.width / 2 : window.innerWidth / 2
   const ty = counter ? counter.top + counter.height / 2 : window.innerHeight - 60
   return { x, y, dx: tx - x, dy: ty - y }
 }
 
+/** The equipped gun's report, quieter for the shots nobody pulled the trigger on. */
+function shotSound(gain) {
+  playSound('shoot', { kind: shotKind(getGun(useGame.getState().equipped)), gain })
+}
+
 /**
- * Sword swings. Left-click on the game view swings once (right-click stays with the
+ * Shooting. Left-click on the game view fires once (right-click stays with the
  * camera, and HUD elements sit above the canvas so they never reach this); standing
- * on a training pad swings automatically. Each swing sends a "⚔ +N" popup to the
- * Power counter: from the click, or from the player for automatic swings.
+ * on a target's pad fires automatically, as do the auto clickers. Each shot sends a
+ * "+N Ammo" popup to the Ammo counter: from the click, or from the player for
+ * automatic shots.
  *
  * @param {{ bodyRef: React.MutableRefObject<any> }} props
  */
-export function SwingInput({ bodyRef }) {
+export function ShootInput({ bodyRef }) {
   const gl = useThree((s) => s.gl)
   const camera = useThree((s) => s.camera)
   const autoTimer = useRef(0)
@@ -54,22 +61,22 @@ export function SwingInput({ bodyRef }) {
     /** The touch that might turn out to be a tap, if it does not become a drag. */
     let tap = null
 
-    const swingAt = (clientX, clientY) => {
+    const shootAt = (clientX, clientY) => {
       // The player's position lets a stage wall tell which side it was hit from.
       const p = bodyRef.current?.translation()
-      useGame.getState().swing(popupPath(clientX, clientY), p && [p.x, p.y, p.z])
-      playSound('swing')
+      useGame.getState().shoot(popupPath(clientX, clientY), p && [p.x, p.y, p.z])
+      shotSound(1)
     }
 
     const onPointerDown = (e) => {
-      // A finger has to wait: the same gesture that swings also turns the camera
+      // A finger has to wait: the same gesture that shoots also turns the camera
       // (see FollowCamera), and which one it was is only known when it ends.
       if (e.pointerType === 'touch') {
         tap = { id: e.pointerId, x: e.clientX, y: e.clientY }
         return
       }
       if (e.button !== 0) return
-      swingAt(e.clientX, e.clientY)
+      shootAt(e.clientX, e.clientY)
     }
 
     const onPointerMove = (e) => {
@@ -82,7 +89,7 @@ export function SwingInput({ bodyRef }) {
       const { x, y } = tap
       tap = null
       // It never became a drag, so it was a tap.
-      swingAt(x, y)
+      shootAt(x, y)
     }
 
     const onPointerCancel = () => {
@@ -102,11 +109,11 @@ export function SwingInput({ bodyRef }) {
   }, [gl, bodyRef])
 
   useFrame((_state, delta) => {
-    // Training and the auto clickers both swing on a timer; the fastest one wins.
+    // Training and the auto clickers both fire on a timer; the fastest one wins.
     const game = useGame.getState()
-    // Swings from the on-screen sword button, which knows nothing about where the
+    // Shots from the on-screen fire button, which knows nothing about where the
     // player is standing (see game/input.js).
-    const tapped = takeSwings()
+    const tapped = takeShots()
     let asked = tapped
     let interval = Infinity
     if (game.activeTrainer) interval = AUTO_TRAIN_S
@@ -133,14 +140,14 @@ export function SwingInput({ bodyRef }) {
       y = rect.top + ((1 - _screen.y) / 2) * rect.height
     }
     for (let i = 0; i < asked; i++) {
-      useGame.getState().swing(popupPath(x + (Math.random() - 0.5) * 60, y), p && [p.x, p.y, p.z])
+      useGame.getState().shoot(popupPath(x + (Math.random() - 0.5) * 90, y - Math.random() * 30), p && [p.x, p.y, p.z])
     }
-    // A tap on the sword button is a swing the player made and should sound like
-    // one; the automatic ones repeat for as long as you train, so they stay quiet.
-    playSound('swing', tapped > 0 ? undefined : { gain: 0.45 })
+    // A tap on the fire button is a shot the player made and should sound like one;
+    // the automatic ones repeat for as long as you train, so they sit back a little.
+    shotSound(tapped > 0 ? 1 : 0.45)
   })
 
   return null
 }
 
-export default SwingInput
+export default ShootInput

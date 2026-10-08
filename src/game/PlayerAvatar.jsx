@@ -15,6 +15,7 @@ import { loadOBJ, loadPartGLB, loadTexture } from '../bloxity/avatarLoader'
 import { useBloxity } from '../bloxity/BloxityContext'
 import { DEFAULT_PROPORTIONS } from '../bloxity/store'
 import {
+  AIM_ANGLE,
   animateRig,
   applyPart,
   applyProportions,
@@ -25,21 +26,24 @@ import {
   placeHandHolder,
 } from './avatarRig'
 import { useGame } from './gameStore'
-import SwordModel from './SwordModel'
-import { getSword } from './swords'
+import GunModel from './GunModel'
+import { getGun } from './guns'
 
 /**
- * Held sword size relative to its shop model.
+ * Held gun size relative to its shop model.
  *
- * Not larger than this, however tempting. The later blades carry their own `size` on
- * top of it - the Prism Blade is 1.95 - so every increase here is multiplied by two
- * at the top of the shop, and a sword much past this one starts passing through the
- * player and the floor on the downswing.
+ * Not larger than this, however tempting. The later guns carry their own `size` on
+ * top of it - the Supernova Minigun is 2.06 - so every increase here is multiplied by
+ * two at the top of the shop, and a gun much past this one pokes through the
+ * player's own head on the recoil.
  */
-const HELD_SCALE = 0.95
-/** Blade points forward (+Z) and tilted up a little, rather than straight up. */
-const HELD_ROTATION = [Math.PI / 2 - 0.35, 0, 0]
-/** The held sword always glows a little, even a plain one with no glow of its own. */
+const HELD_SCALE = 0.8
+/**
+ * Cancels the arm's raise, so that with the arm held out on aim the barrel points
+ * straight ahead instead of at the sky. The recoil then tips it up, as it should.
+ */
+const HELD_ROTATION = [-AIM_ANGLE, 0, 0]
+/** The held gun's trim always glows a little, even a plain one with no glow of its own. */
 const HELD_MIN_GLOW = 0.28
 
 /**
@@ -66,12 +70,12 @@ function fallbackMotion(delta) {
  * changing cosmetics in the Bloxity portal updates the character live.
  *
  * @param {{ onReady?: () => void, targetHeight?: number, remote?: boolean,
- *           equipped?: object, proportions?: object, swordId?: string }} props
+ *           equipped?: object, proportions?: object, gunId?: string }} props
  *   `targetHeight` is the world-space height to fit the avatar into, in the game's
  *   own units. Bloxity authors the rig ~6.4 units tall with the feet at y=0, which is
  *   far bigger than a metric-scale physics capsule, so the model is measured and
  *   rescaled rather than trusted at native size.
- *   `remote` renders another player: their `equipped` / `proportions` / `swordId`
+ *   `remote` renders another player: their `equipped` / `proportions` / `gunId`
  *   come from the lobby server instead of our own Bloxity session and game state.
  */
 export const PlayerAvatar = forwardRef(function PlayerAvatar(
@@ -82,7 +86,7 @@ export const PlayerAvatar = forwardRef(function PlayerAvatar(
     remote = false,
     equipped: remoteEquipped = null,
     proportions: remoteProportions,
-    swordId,
+    gunId,
     ...props
   },
   ref,
@@ -118,12 +122,12 @@ export const PlayerAvatar = forwardRef(function PlayerAvatar(
     return collected
   }, [character])
 
-  // Empty object on the forearm bone; the equipped sword is portalled into it.
+  // Empty object on the forearm bone; the equipped gun is portalled into it.
   const hand = useMemo(() => attachHandHolder(rig), [rig])
-  const ownSword = useGame((s) => s.equipped)
-  const sword = getSword(remote ? swordId : ownSword)
-  /** 0-1, brightest right on impact, fading through the swing; read by SwordModel. */
-  const swordFlash = useRef(0)
+  const ownGun = useGame((s) => s.equipped)
+  const gun = getGun(remote ? gunId : ownGun)
+  /** 0-1, brightest on the shot, fading through the recoil; read by GunModel. */
+  const gunFlash = useRef(0)
 
   // Measured once, from the bind pose, before proportions touch the root scale.
   const fit = useMemo(() => {
@@ -245,10 +249,10 @@ export const PlayerAvatar = forwardRef(function PlayerAvatar(
       applyProportions(rig, proportionsRef.current)
       const motion = motionRef?.current ?? fallbackMotion(delta)
       animateRig(rig, motion)
-      // `swing` counts up from 0 (the instant of a hit) to 1 (the animation's end);
-      // ease the flash out over that same window so it lands exactly on the swing.
-      const sw = motion.swing
-      swordFlash.current = sw !== undefined && sw >= 0 && sw < 1 ? (1 - sw) ** 1.5 : 0
+      // `shot` counts up from 0 (the instant it fires) to 1 (the recoil's end);
+      // ease the flash out over that same window so it lands exactly on the shot.
+      const shot = motion.shot
+      gunFlash.current = shot !== undefined && shot >= 0 && shot < 1 ? (1 - shot) ** 1.5 : 0
     } catch {
       // A malformed payload must not kill the render loop.
     }
@@ -266,12 +270,12 @@ export const PlayerAvatar = forwardRef(function PlayerAvatar(
       <group scale={fit.scale} position={[0, fit.footOffset, 0]}>
         <primitive object={character} />
       </group>
-      {/* The holder lives in the rig's native units; undo the fit scale so the sword
+      {/* The holder lives in the rig's native units; undo the fit scale so the gun
           is authored in world units like everything else. */}
       {hand &&
         createPortal(
           <group scale={HELD_SCALE / fit.scale} rotation={HELD_ROTATION}>
-            <SwordModel sword={sword} minGlow={HELD_MIN_GLOW} flashRef={swordFlash} />
+            <GunModel gun={gun} minGlow={HELD_MIN_GLOW} flashRef={gunFlash} />
           </group>,
           hand,
         )}

@@ -639,12 +639,12 @@ export function radialGlowTexture() {
   })
 }
 
-/** Red-and-white bullseye on a transparent background, for training dummies. */
-export function targetTexture() {
-  return cached('target', () => {
+/** Bullseye on a transparent background, its rings in `color` and white. */
+export function targetTexture(color = '#e8392d') {
+  return cached(`target:${color}`, () => {
     const s = 256
     const [canvas, ctx] = makeCanvas(s, s)
-    const rings = ['#e8392d', '#ffffff', '#e8392d', '#ffffff', '#e8392d']
+    const rings = [color, '#ffffff', color, '#ffffff', color]
     rings.forEach((color, i) => disc(ctx, s / 2, s / 2, s * 0.48 * (1 - i / rings.length), color))
     ctx.lineWidth = 6
     ctx.strokeStyle = 'rgba(0,0,0,0.3)'
@@ -683,7 +683,7 @@ export function skyTexture() {
   })
 }
 
-/** Small outlined icon in an `s`-sized square at (x, y): 'trophy', 'sword' or 'bux'. */
+/** Small outlined icon in an `s`-sized square at (x, y): 'trophy', 'ammo', 'bux' or 'star'. */
 function drawIcon(ctx, kind, x, y, s) {
   ctx.save()
   ctx.translate(x, y)
@@ -720,27 +720,40 @@ function drawIcon(ctx, kind, x, y, s) {
     ctx.stroke()
     ctx.fillStyle = gold
     ctx.fill()
-  } else if (kind === 'sword') {
-    ctx.translate(50, 50)
-    ctx.rotate(Math.PI / 4)
-    ctx.lineWidth = 8
-    ctx.strokeStyle = outline
-    ctx.beginPath()
-    ctx.moveTo(0, -48)
-    ctx.lineTo(9, -36)
-    ctx.lineTo(9, 14)
-    ctx.lineTo(-9, 14)
-    ctx.lineTo(-9, -36)
-    ctx.closePath()
-    ctx.stroke()
-    ctx.fillStyle = '#e6ecf5'
-    ctx.fill()
-    ctx.beginPath()
-    ctx.rect(-22, 14, 44, 10)
-    ctx.rect(-6, 24, 12, 18)
-    ctx.stroke()
-    ctx.fillStyle = '#ffc93c'
-    ctx.fill()
+  } else if (kind === 'ammo') {
+    // Two rounds standing side by side, the back one taller: a copper tip on a brass
+    // case, the way the reference game draws its Ammo.
+    const round = (cx, top, w) => {
+      const caseTop = top + w * 1.15
+      const brass = ctx.createLinearGradient(cx - w / 2, 0, cx + w / 2, 0)
+      brass.addColorStop(0, '#fff3a0')
+      brass.addColorStop(0.5, '#ffc21a')
+      brass.addColorStop(1, '#c88400')
+      const copper = ctx.createLinearGradient(cx - w / 2, 0, cx + w / 2, 0)
+      copper.addColorStop(0, '#ffd1a0')
+      copper.addColorStop(1, '#e0702a')
+      ctx.lineWidth = 7
+      ctx.strokeStyle = outline
+      ctx.beginPath()
+      ctx.moveTo(cx - w / 2, caseTop)
+      ctx.quadraticCurveTo(cx - w / 2, top + w * 0.2, cx, top)
+      ctx.quadraticCurveTo(cx + w / 2, top + w * 0.2, cx + w / 2, caseTop)
+      ctx.closePath()
+      ctx.stroke()
+      ctx.fillStyle = copper
+      ctx.fill()
+      ctx.beginPath()
+      ctx.rect(cx - w / 2, caseTop, w, 92 - caseTop)
+      ctx.stroke()
+      ctx.fillStyle = brass
+      ctx.fill()
+      ctx.beginPath()
+      ctx.rect(cx - w / 2 - 3, 84, w + 6, 8)
+      ctx.stroke()
+      ctx.fill()
+    }
+    round(36, 8, 30)
+    round(66, 26, 28)
   } else if (kind === 'bux') {
     // Bloxity's gem, to mark a price paid in Bux rather than Wins.
     const gem = ctx.createLinearGradient(0, 0, 0, 100)
@@ -789,7 +802,7 @@ function drawIcon(ctx, kind, x, y, s) {
 
 /**
  * Text sign. `lines` are strings or `{ text, scale, fill, icon }`; `fill` may be a
- * list of colours for a vertical gradient, and `icon` ('trophy' | 'sword' | 'bux' |
+ * list of colours for a vertical gradient, and `icon` ('trophy' | 'ammo' | 'bux' |
  * 'star') is drawn before the text.
  */
 export function labelTexture({

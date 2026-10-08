@@ -11,8 +11,9 @@ import PetCompanion from './PetCompanion'
 import Player from './Player'
 import RemotePlayers from './RemotePlayers'
 import { qualityOf, useSettings } from './settings'
-import SwingInput from './SwingInput'
-import { SPAWN } from './world/themes'
+import ShootInput from './ShootInput'
+import ShotEffects from './ShotEffects'
+import { BOSS_SPAWN, SPACE_SPAWN, SPAWN } from './world/themes'
 import World, { SunLight } from './world/World'
 
 /**
@@ -91,6 +92,17 @@ function LocalEnvironment() {
     </Environment>
   )
 }
+
+/**
+ * Development only: `?at=boss` or `?at=space` starts you in the Boss Arena or Space
+ * World, so either can be checked without rebirthing first. Production builds
+ * always start in the lobby.
+ */
+const START = (() => {
+  if (!import.meta.env.DEV) return SPAWN
+  const at = new URLSearchParams(location.search).get('at')
+  return { boss: BOSS_SPAWN, space: SPACE_SPAWN }[at] ?? SPAWN
+})()
 
 export function GameScene() {
   const { game } = useBloxity()
@@ -178,7 +190,7 @@ export function GameScene() {
           <Player
             bodyRef={playerBodyRef}
             anchorRef={playerAnchorRef}
-            position={SPAWN}
+            position={START}
             onAvatarReady={handleAvatarReady}
           />
           <PetCompanion bodyRef={playerBodyRef} anchorRef={playerAnchorRef} />
@@ -188,10 +200,11 @@ export function GameScene() {
           {/* Inside Physics: the camera raycasts against the world so it can't be
               pushed through a stage wall. It no-ops until the player body exists. */}
           <FollowCamera bodyRef={playerBodyRef} anchorRef={playerAnchorRef} />
+          <ShotEffects bodyRef={playerBodyRef} anchorRef={playerAnchorRef} />
         </Physics>
       </Suspense>
 
-      <SwingInput bodyRef={playerBodyRef} />
+      <ShootInput bodyRef={playerBodyRef} />
       <FirstFrameSignal onFirstFrame={handleFirstFrame} />
     </Canvas>
   )

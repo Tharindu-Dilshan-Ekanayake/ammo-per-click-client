@@ -5,10 +5,11 @@ import { Quaternion, Vector3 } from 'three'
 
 import { remoteStates, useLobby } from '../net/lobbyClient'
 import { playTrack } from '../net/snapshots'
+import { getGun, shotKind } from './guns'
 import { getPet } from './pets'
 import { playSound } from './sound'
 import { AvatarBoundary, StandInBody } from './AvatarBoundary'
-import { PLAYER_HEIGHT, SWING_DURATION_S } from './Player'
+import { PLAYER_HEIGHT, SHOT_DURATION_S } from './Player'
 import PlayerAvatar from './PlayerAvatar'
 import { Label } from './world/Effects'
 import { PetModel } from './world/PetModel'
@@ -18,7 +19,7 @@ const _petQuat = new Quaternion()
 const _petBefore = new Vector3()
 const _up = new Vector3(0, 1, 0)
 const _sample = { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0 }
-/** Other players' swings can be heard up to this far from the camera. */
+/** Other players' shots can be heard up to this far from the camera. */
 const HEAR_DISTANCE = 25
 /** How far behind a remote player their pet trails, once it's caught up. */
 const PET_HEEL_DISTANCE = 1.7
@@ -39,8 +40,8 @@ function RemotePlayer({ id, player }) {
   const visual = useRef(null)
   // maxSpeed a little under the walk speed (6), so small wobbles in their played-back
   // speed don't shrink the stride; a sprint is past it too, so both get the full cycle.
-  const motion = useRef({ time: 0, speed: 0, grounded: true, maxSpeed: 5.5, swing: Infinity })
-  const swing = useRef({ sw: null, at: -Infinity })
+  const motion = useRef({ time: 0, speed: 0, grounded: true, maxSpeed: 5.5, shot: Infinity })
+  const shots = useRef({ sw: null, at: -Infinity })
   const pet = useRef(null)
   const petFacing = useRef(0)
   const petInitialised = useRef(false)
@@ -96,18 +97,20 @@ function RemotePlayer({ id, player }) {
       pet.current.quaternion.slerp(_petQuat, 1 - Math.pow(0.001, delta * 0.8))
     }
 
-    // A new swing count means they just swung.
-    const sw = swing.current
+    // A new shot count means they just fired.
+    const sw = shots.current
     if (track.sw !== sw.sw) {
       if (sw.sw !== null) {
         sw.at = now / 1000
         // Heard when they're close, fading out with distance.
         const distance = state.camera.position.distanceTo(group.position)
-        if (distance < HEAR_DISTANCE) playSound('swing', { gain: 0.5 * (1 - distance / HEAR_DISTANCE) })
+        if (distance < HEAR_DISTANCE) {
+          playSound('shoot', { kind: shotKind(getGun(player.gun)), gain: 0.4 * (1 - distance / HEAR_DISTANCE) })
+        }
       }
       sw.sw = track.sw
     }
-    m.swing = (now / 1000 - sw.at) / SWING_DURATION_S
+    m.shot = (now / 1000 - sw.at) / SHOT_DURATION_S
   })
 
   const petDef = player.pet ? getPet(player.pet) : null
@@ -123,7 +126,7 @@ function RemotePlayer({ id, player }) {
                 remote
                 equipped={player.avatar?.equipped ?? null}
                 proportions={player.avatar?.proportions}
-                swordId={player.sword}
+                gunId={player.gun}
                 targetHeight={PLAYER_HEIGHT}
                 motionRef={motion}
               />

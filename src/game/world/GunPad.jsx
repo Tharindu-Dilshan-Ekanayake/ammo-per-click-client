@@ -4,10 +4,11 @@ import { CuboidCollider, RigidBody } from '@react-three/rapier'
 import { useRef } from 'react'
 import { AdditiveBlending } from 'three'
 
+import { useBuxPrice } from '../../bloxity/prices'
 import { formatNumber } from '../format'
 import { useGame } from '../gameStore'
-import { glowColor } from '../swords'
-import SwordModel from '../SwordModel'
+import GunModel from '../GunModel'
+import { glowColor } from '../guns'
 import { Label } from './Effects'
 import InteractPrompt from './InteractPrompt'
 import PadGlow from './PadGlow'
@@ -19,7 +20,7 @@ const STATUS_COLOR = {
   owned: '#ffd23f',
   affordable: '#ff3b3b',
   locked: '#d9302b',
-  /** A Bux blade nobody has bought yet: gem blue, never the "can't afford" red. */
+  /** A Bux gun nobody has bought yet: gem blue, never the "can't afford" red. */
   bux: '#2fa8ff',
 }
 
@@ -35,45 +36,47 @@ const STATUS_GLOW = {
 const GOLD = ['#fff6a8', '#ffc21a']
 const GEM = ['#d6f6ff', '#2fa8ff']
 const PAD_TOP = 0.26
-/** Shop swords are shown bigger than held ones so the row reads from the path. */
-const DISPLAY_SCALE = 1.35
+/** Shop guns are shown bigger than held ones so the row reads from the path. */
+const DISPLAY_SCALE = 1.6
+/** Height the gun floats at over the pad. */
+const DISPLAY_Y = 1.25
 
 /**
- * Shop slot: a sword standing upright on a glowing hexagon pad, with its price,
- * name and power floating above. Walking up to it shows an E prompt to buy the
- * sword, or equip it if already owned.
+ * Shop slot: a gun turning slowly over a glowing hexagon pad, with its price, name
+ * and Ammo per click floating above. Walking up to it shows an E prompt to buy the
+ * gun, or equip it if already owned.
  *
- * @param {{ sword: object, position: number[] }} props
+ * @param {{ gun: object, position: number[] }} props
  */
-export function SwordPad({ sword, position }) {
-  // A Bux blade has no `cost` at all, so it can never be "affordable" or "locked" -
+export function GunPad({ gun, position }) {
+  // A Bux gun has no `cost` at all, so it can never be "affordable" or "locked" -
   // there is no amount of Wins that buys it. It shows as `bux` until it is owned.
   const status = useGame((s) =>
-    s.equipped === sword.id
+    s.equipped === gun.id
       ? 'equipped'
-      : s.owned.includes(sword.id)
+      : s.owned.includes(gun.id)
         ? 'owned'
-        : sword.bux
+        : gun.bux
           ? 'bux'
-          : s.wins >= sword.cost
+          : s.wins >= gun.cost
             ? 'affordable'
             : 'locked',
   )
-  const swordRef = useRef(null)
+  const bux = useBuxPrice(gun)
+  const gunRef = useRef(null)
   const padMaterial = useRef(null)
   const aura = useRef(null)
 
-  /** Each sword glows in its own colour. */
-  const glow = glowColor(sword)
-  /** Pommel-to-tip height of the displayed sword. */
-  const height = 1.78 * sword.size * DISPLAY_SCALE
-  const baseY = PAD_TOP + 0.3 * sword.size * DISPLAY_SCALE
+  /** Each gun glows in its own colour. */
+  const glow = glowColor(gun)
+  /** Roughly how tall the floating gun and its glow stand. */
+  const height = DISPLAY_Y + 0.6 * gun.size
 
   useFrame(({ clock }, delta) => {
     const t = clock.elapsedTime
-    if (swordRef.current) {
-      swordRef.current.rotation.y += delta * 0.5
-      swordRef.current.position.y = baseY + Math.sin(t * 1.4 + position[0]) * 0.08
+    if (gunRef.current) {
+      gunRef.current.rotation.y += delta * 0.6
+      gunRef.current.position.y = DISPLAY_Y + Math.sin(t * 1.4 + position[0]) * 0.08
     }
     if (padMaterial.current) {
       padMaterial.current.emissiveIntensity =
@@ -82,23 +85,19 @@ export function SwordPad({ sword, position }) {
     if (aura.current) aura.current.opacity = 0.3 + 0.12 * Math.sin(t * 2 + position[0])
   })
 
-  const inRange = useGame((s) => s.interact?.kind === 'sword' && s.interact.id === sword.id)
+  const inRange = useGame((s) => s.interact?.kind === 'gun' && s.interact.id === gun.id)
 
   const onEnter = ({ other }) => {
-    if (other.rigidBodyObject?.name === 'player') useGame.getState().setInteract('sword', sword.id)
+    if (other.rigidBodyObject?.name === 'player') useGame.getState().setInteract('gun', gun.id)
   }
   const onExit = ({ other }) => {
-    if (other.rigidBodyObject?.name === 'player') useGame.getState().clearInteract('sword', sword.id)
+    if (other.rigidBodyObject?.name === 'player') useGame.getState().clearInteract('gun', gun.id)
   }
 
-  const price = sword.bux
-    ? `💎 ${sword.bux} Bux`
-    : sword.cost === 0
-      ? 'Free'
-      : `🏆 ${formatNumber(sword.cost)} Wins`
+  const price = gun.bux ? `💎 ${bux} Bux` : gun.cost === 0 ? 'Free' : `🏆 ${formatNumber(gun.cost)} Wins`
   const prompt = {
     equipped: { action: 'Equipped', tone: 'done', detail: 'In your hand' },
-    owned: { action: 'Equip', tone: 'normal', detail: 'You own this sword' },
+    owned: { action: 'Equip', tone: 'normal', detail: 'You own this gun' },
     affordable: { action: 'Buy', tone: 'normal', detail: price },
     locked: { action: 'Buy', tone: 'warn', detail: `${price} · not enough Wins` },
     bux: { action: 'Buy', tone: 'normal', detail: `${price}  -  yours for good` },
@@ -110,11 +109,11 @@ export function SwordPad({ sword, position }) {
       ? { text: 'EQUIPPED', fill: ['#f0dcff', '#c07bff'] }
       : status === 'owned'
         ? { text: 'OWNED', fill: GOLD }
-        : sword.bux
-          ? { text: `${sword.bux} Bux`, icon: 'bux', fill: GEM }
-          : sword.cost === 0
+        : gun.bux
+          ? { text: `${bux} Bux`, icon: 'bux', fill: GEM }
+          : gun.cost === 0
             ? { text: 'FREE', fill: ['#ffffff', '#b8ffb0'] }
-            : { text: `${formatNumber(sword.cost)} Wins`, icon: 'trophy', fill: GOLD }
+            : { text: `${formatNumber(gun.cost)} Wins`, icon: 'trophy', fill: GOLD }
 
   return (
     <group position={position}>
@@ -134,12 +133,15 @@ export function SwordPad({ sword, position }) {
         />
       </mesh>
 
-      <group ref={swordRef} position={[0, baseY, 0]} scale={DISPLAY_SCALE}>
-        <SwordModel sword={sword} minGlow={0.25} />
+      {/* Centred on its own middle, so it turns in place rather than round its grip. */}
+      <group ref={gunRef} position={[0, DISPLAY_Y, 0]} scale={DISPLAY_SCALE}>
+        <group position={[0, -0.05, -0.2 * gun.size]}>
+          <GunModel gun={gun} minGlow={0.3} />
+        </group>
       </group>
 
-      {/* Neon rim and rings rising round the sword, in its colour, plus a soft aura
-          behind the blade. */}
+      {/* Neon rim and rings rising round the gun, in its colour, plus a soft aura
+          behind it. */}
       <PadGlow
         color={glow}
         shape="hex"
@@ -147,12 +149,12 @@ export function SwordPad({ sword, position }) {
         y={PAD_TOP + 0.01}
         rise={Math.max(2.4, height + 0.4)}
         level={STATUS_GLOW[status]}
-        sparkles={sword.glow ? 8 : 5}
+        sparkles={gun.glow ? 8 : 5}
         phase={position[0]}
       />
-      <Billboard position={[0, PAD_TOP + height * 0.55, 0]}>
+      <Billboard position={[0, DISPLAY_Y, 0]}>
         <mesh>
-          <planeGeometry args={[1.6 * sword.size, height * 1.25]} />
+          <planeGeometry args={[2.2 * gun.size, 1.6 * gun.size]} />
           <meshBasicMaterial
             ref={aura}
             map={radialGlowTexture()}
@@ -166,21 +168,21 @@ export function SwordPad({ sword, position }) {
         </mesh>
       </Billboard>
 
-      <Billboard position={[0, PAD_TOP + height + 1.15, 0]}>
+      <Billboard position={[0, height + 1.35, 0]}>
         <Label
           lines={[
-            ...(sword.bux ? [{ text: 'VIP', scale: 0.8, fill: GEM }] : []),
+            ...(gun.bux ? [{ text: 'VIP', scale: 0.8, fill: GEM }] : []),
             priceLine,
-            { text: sword.name, scale: 1.3 },
-            { text: `+${formatNumber(sword.power)} Power`, fill: ['#ff9a9a', '#ff3030'] },
+            { text: gun.name, scale: 1.3 },
+            { text: `+${formatNumber(gun.ammo)} Ammo`, icon: 'ammo', fill: ['#ff9a9a', '#ff3030'] },
           ]}
           position={[0, 0, 0]}
-          size={[3.8, sword.bux ? 2.3 : 1.9]}
+          size={[3.8, gun.bux ? 2.3 : 1.9]}
           style={{ width: 512 }}
         />
       </Billboard>
 
-      {inRange && <InteractPrompt position={[0, 2.2, 0]} title={sword.name} {...prompt} />}
+      {inRange && <InteractPrompt position={[0, 2.2, 0]} title={gun.name} {...prompt} />}
 
       <RigidBody type="fixed" colliders={false}>
         <CuboidCollider
@@ -195,4 +197,4 @@ export function SwordPad({ sword, position }) {
   )
 }
 
-export default SwordPad
+export default GunPad

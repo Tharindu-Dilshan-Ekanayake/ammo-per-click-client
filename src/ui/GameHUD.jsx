@@ -1,24 +1,26 @@
 import { useEffect, useRef, useState } from 'react'
 
 import { topUp, useBux } from '../bloxity/bux'
+import { useBossFight } from '../game/bossFight'
 import { useTouchDevice } from '../game/device'
 import { formatBonus, formatNumber } from '../game/format'
-import { powerMultiplier, useGame } from '../game/gameStore'
-import { petWinsMultiplier } from '../game/pets'
+import { AUTO_WINS_S, powerMultiplier, useGame, winsMultiplier } from '../game/gameStore'
 import {
   activeBoost,
   AUTO_CLICKERS,
   BOOSTS,
+  levelAmmo,
   levelFor,
-  levelPower,
   MAX_LEVEL,
   rebirthMultiplier,
   WALK_SPEED,
 } from '../game/progression'
+import { playSound } from '../game/sound'
 import { getTrainer } from '../game/trainers'
 import { ControlsButton, ControlsPanel } from './Controls'
 import { PetsButton, PetsPanel } from './PetsPanel'
 import { RebirthButton, RebirthPanel } from './RebirthPanel'
+import { AutoWinsButton, PromoStack, ShopButton, ShopPanel } from './ShopPanel'
 import { CHIP, OUTLINE, outlined, SOFT } from './textStyle'
 import { HUD_STRIP_H, reportStripHeight, useTouchScale } from './touchLayout'
 
@@ -45,7 +47,11 @@ const BOOST_COLORS = {
 
 // --- Icons: drawn in the same outlined style as the signs, not emoji -----------------
 
-function SwordIcon({ className = 'h-[1.3em] w-[1.3em]', style }) {
+/**
+ * Two rounds of ammunition, copper tips on brass cases - the game's currency, drawn
+ * the way the reference game draws it. Same chunky outline as every other icon here.
+ */
+export function AmmoIcon({ className = 'h-[1.3em] w-[1.3em]', style }) {
   return (
     <svg
       viewBox="0 0 100 100"
@@ -54,16 +60,23 @@ function SwordIcon({ className = 'h-[1.3em] w-[1.3em]', style }) {
       style={{ ...ICON_SHADOW, ...style }}
     >
       <defs>
-        <linearGradient id="hud-blade" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0" stopColor="#ffffff" />
-          <stop offset="1" stopColor="#8fd3ff" />
+        <linearGradient id="hud-brass" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stopColor="#fff3a0" />
+          <stop offset="0.5" stopColor="#ffc21a" />
+          <stop offset="1" stopColor="#c88400" />
+        </linearGradient>
+        <linearGradient id="hud-copper" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stopColor="#ffd1a0" />
+          <stop offset="1" stopColor="#e0702a" />
         </linearGradient>
       </defs>
-      <g transform="rotate(45 50 50)" stroke={INK} strokeWidth="6" strokeLinejoin="round">
-        <path d="M50 4 L59 17 L59 62 L41 62 L41 17 Z" fill="url(#hud-blade)" />
-        <rect x="27" y="62" width="46" height="10" rx="3" fill="#ffc93c" />
-        <rect x="44" y="72" width="12" height="16" fill="#8a5a2b" />
-        <rect x="40" y="86" width="20" height="9" rx="4" fill="#ffc93c" />
+      <g stroke={INK} strokeWidth="6" strokeLinejoin="round">
+        <path d="M21 44 Q21 14 36 6 Q51 14 51 44 Z" fill="url(#hud-copper)" />
+        <rect x="21" y="44" width="30" height="46" fill="url(#hud-brass)" />
+        <rect x="18" y="84" width="36" height="9" fill="url(#hud-brass)" />
+        <path d="M52 58 Q52 30 66 23 Q80 30 80 58 Z" fill="url(#hud-copper)" />
+        <rect x="52" y="58" width="28" height="32" fill="url(#hud-brass)" />
+        <rect x="49" y="84" width="34" height="9" fill="url(#hud-brass)" />
       </g>
     </svg>
   )
@@ -292,19 +305,103 @@ function Notice({ message }) {
   )
 }
 
-/** "⚔ +N" popups: each pops up where it started, then flies into the Power counter. */
+/**
+ * "+N" popups with the Ammo icon: each pops up where the shot was fired with a little
+ * twist, then flies into the Ammo counter. Half size on a phone, where forty of them
+ * a second would otherwise cover the player.
+ */
 function ClickPopups() {
   const popups = useGame((s) => s.popups)
+  const touch = useTouchDevice()
   return popups.map((p) => (
     <div
       key={p.id}
-      className="click-popup pointer-events-none z-20 flex items-center gap-1 whitespace-nowrap text-4xl text-yellow-300"
-      style={{ ...OUTLINE, left: p.x, top: p.y, '--dx': `${p.dx}px`, '--dy': `${p.dy}px` }}
+      className={`click-popup pointer-events-none z-20 flex items-center gap-1 whitespace-nowrap text-yellow-300 ${
+        touch ? 'text-xl' : 'text-4xl'
+      }`}
+      style={{
+        ...OUTLINE,
+        left: p.x,
+        top: p.y,
+        '--dx': `${p.dx}px`,
+        '--dy': `${p.dy}px`,
+        '--rot': `${((p.id % 5) - 2) * 9}deg`,
+      }}
     >
-      <SwordIcon />
+      <AmmoIcon className={touch ? 'h-6 w-6' : 'h-11 w-11'} />
       <span>+{formatNumber(p.gain)}</span>
     </div>
   ))
+}
+
+/**
+ * Auto Wins, while it is on: pays out every AUTO_WINS_S seconds with a coin, and
+ * the Wins counter bumps. No toast - one every ten seconds would bury the real ones.
+ */
+function AutoWinsTicker() {
+  const on = useGame((s) => s.autoWins && s.ownedPasses.includes('autoWins'))
+  useEffect(() => {
+    if (!on) return undefined
+    const id = setInterval(() => {
+      if (useGame.getState().collectAutoWins() > 0) playSound('coin')
+    }, AUTO_WINS_S * 1000)
+    return () => clearInterval(id)
+  }, [on])
+  return null
+}
+
+/** Seconds as "0:42". */
+const clock = (s) => `${Math.floor(s / 60)}:${String(Math.max(0, Math.floor(s % 60))).padStart(2, '0')}`
+
+/**
+ * The boss's health and clock across the top, while you are in its arena. The boss
+ * wears the same over its head, but up there it is often off the top of the screen.
+ */
+function BossBar() {
+  const inArena = useGame((s) => s.inBossArena)
+  const fight = useBossFight()
+  const touch = useTouchDevice()
+  const [now, setNow] = useState(() => performance.now())
+  useEffect(() => {
+    if (!inArena) return undefined
+    const id = setInterval(() => setNow(performance.now()), 250)
+    return () => clearInterval(id)
+  }, [inArena])
+  if (!inArena) return null
+  const fraction = Math.max(0, Math.min(1, fight.hp / fight.maxHp))
+  const status =
+    fight.phase === 'down'
+      ? `Next boss in ${Math.max(0, Math.ceil((fight.nextAt - now) / 1000))}s`
+      : fight.phase === 'fighting'
+        ? `⏱ ${clock((fight.endsAt - now) / 1000)}`
+        : 'Shoot it to start the clock!'
+  return (
+    <div
+      className={`pointer-events-none absolute left-1/2 z-10 -translate-x-1/2 ${touch ? 'top-12 w-72' : 'top-16 w-[30rem]'}`}
+      style={OUTLINE}
+    >
+      <div className={`flex items-baseline justify-between text-white ${touch ? 'text-sm' : 'text-2xl'}`}>
+        <span>Boss Lv {fight.level}</span>
+        <span className={fight.phase === 'fighting' && fight.endsAt - now < 10000 ? 'text-red-400' : 'text-yellow-200'}>
+          {status}
+        </span>
+      </div>
+      <div
+        className={`relative mt-1 overflow-hidden rounded-xl border-4 ${touch ? 'h-6' : 'h-9'}`}
+        style={{ borderColor: INK, background: '#3a1010' }}
+      >
+        <div
+          className="absolute inset-y-0 left-0 transition-[width] duration-150"
+          style={{ width: `${fraction * 100}%`, background: 'linear-gradient(to bottom, #ff8a6a, #d62a1a)' }}
+        />
+        <span
+          className={`absolute inset-0 flex items-center justify-center text-white ${touch ? 'text-xs' : 'text-lg'}`}
+        >
+          {formatNumber(fight.hp)} / {formatNumber(fight.maxHp)}
+        </span>
+      </div>
+    </div>
+  )
 }
 
 /**
@@ -361,7 +458,8 @@ function WinsCounter() {
   const touch = useTouchDevice()
   const wins = useGame((s) => s.wins)
   const pets = useGame((s) => s.equippedPets)
-  const bonus = petWinsMultiplier(pets)
+  const passes = useGame((s) => s.ownedPasses)
+  const bonus = winsMultiplier({ equippedPets: pets, ownedPasses: passes })
   return (
     <div
       className={`pointer-events-none absolute z-10 flex flex-col items-start ${
@@ -377,7 +475,7 @@ function WinsCounter() {
       </div>
       {bonus > 1 && (
         <span className={`ml-1 text-lime-300 ${touch ? 'text-sm' : 'text-2xl'}`}>
-          {pets.length} pets · x{formatBonus(bonus)} Wins
+          {pets.length > 0 ? `${pets.length} pets · ` : ''}x{formatBonus(bonus)} Wins
         </span>
       )}
       <BuxChip />
@@ -391,13 +489,16 @@ function WinsCounter() {
           <PetsButton />
           <RebirthButton />
         </div>
-        <ControlsButton />
+        <div className={`flex items-start ${touch ? 'gap-1' : 'gap-2'}`}>
+          <ShopButton />
+          <ControlsButton />
+        </div>
       </div>
     </div>
   )
 }
 
-/** Orange level bar that fills with Power; "MAX" once there's nothing left to reach. */
+/** Orange level bar that fills with Ammo; "MAX" once there's nothing left to reach. */
 /**
  * Everything in the bottom panel comes in two sizes.
  *
@@ -420,14 +521,14 @@ const BOOST_W = (scale) => Math.max(72, Math.round(78 * scale))
 const AUTO_W = (scale) => Math.max(96, Math.round(104 * scale))
 const ICON_PX = (scale) => Math.max(16, Math.round(18 * scale))
 
-function LevelBar({ power }) {
+function LevelBar({ ammo }) {
   const touch = useTouchDevice()
   const scale = useTouchScale()
-  const level = levelFor(power)
+  const level = levelFor(ammo)
   const max = level >= MAX_LEVEL
-  const from = levelPower(level)
-  const to = levelPower(level + 1)
-  const fraction = max ? 1 : Math.min(1, (power - from) / (to - from))
+  const from = levelAmmo(level)
+  const to = levelAmmo(level + 1)
+  const fraction = max ? 1 : Math.min(1, (ammo - from) / (to - from))
   return (
     <div
       className={`relative overflow-hidden rounded-xl ${touch ? 'border-2' : 'h-16 border-4'}`}
@@ -441,7 +542,7 @@ function LevelBar({ power }) {
     >
       <div
         className="absolute inset-y-0 left-0 transition-[width] duration-300"
-        style={{ width: `${fraction * 100}%`, background: 'linear-gradient(to bottom, #ffd24a, #ff9a1a 60%, #f07a00)' }}
+        style={{ width: `${fraction * 100}%`, background: 'linear-gradient(to bottom, #6fe8ff, #2fb6ff 60%, #1a8fe0)' }}
       />
       <div className="absolute inset-x-3 top-1.5 h-2 rounded-full bg-white/30" />
       <div
@@ -454,7 +555,7 @@ function LevelBar({ power }) {
         {max ? (
           <span>MAX</span>
         ) : (
-          <span className={touch ? 'text-xs' : 'text-2xl'}>{`${formatNumber(power)} / ${formatNumber(to)}`}</span>
+          <span className={touch ? 'text-xs' : 'text-2xl'}>{`${formatNumber(ammo)} / ${formatNumber(to)}`}</span>
         )}
       </div>
     </div>
@@ -478,7 +579,7 @@ function BoostButton({ def, now }) {
         className={`flex items-center justify-center text-white ${touch ? 'gap-0.5' : 'gap-2 text-3xl'}`}
         style={touch ? { ...OUTLINE, fontSize: Math.max(13, Math.round(16 * scale)) } : OUTLINE}
       >
-        <SwordIcon
+        <AmmoIcon
           className={touch ? '' : 'h-10 w-10'}
           style={touch ? { width: ICON_PX(scale), height: ICON_PX(scale) } : undefined}
         />
@@ -540,8 +641,9 @@ function AutoClickerButton({ kind }) {
 }
 
 /**
- * The HUD: toasts, click popups, the Wins counter, and the bottom panel with Power,
- * the level bar, boosts and auto clickers. Also handles E (tap, or hold on Win pads).
+ * The HUD: toasts, click popups, the Wins counter, the shop and its offers, the boss
+ * bar, and the bottom panel with Ammo, the level bar, boosts and auto clickers. Also
+ * handles E (tap, or hold on Win pads).
  */
 
 export function GameHUD() {
@@ -559,15 +661,17 @@ export function GameHUD() {
     reportStripHeight(el.getBoundingClientRect().height)
     return () => observer.disconnect()
   }, [touch])
-  const power = useGame((s) => s.power)
+  const ammo = useGame((s) => s.ammo)
   const rebirths = useGame((s) => s.rebirths)
   const boost = useGame((s) => s.boost)
+  const ownedPasses = useGame((s) => s.ownedPasses)
   const message = useGame((s) => s.message)
   const activeTrainer = useGame((s) => s.activeTrainer)
   const now = useNow()
 
-  const level = levelFor(power)
-  const multiplier = powerMultiplier({ power, boost }, now) * (getTrainer(activeTrainer)?.multiplier ?? 1)
+  const level = levelFor(ammo)
+  const multiplier =
+    powerMultiplier({ ammo, boost, rebirths, ownedPasses }, now) * (getTrainer(activeTrainer)?.multiplier ?? 1)
 
   // E acts on whatever is in range (see the prompts in the world); Win pads need it held.
   useEffect(() => {
@@ -591,10 +695,15 @@ export function GameHUD() {
   return (
     <>
       <ClickPopups />
+      <AutoWinsTicker />
       {/* Wins, the pet bonus, Bux and the Pets button, stacked down the left rail. */}
       <WinsCounter />
+      <AutoWinsButton />
+      <BossBar />
+      <PromoStack />
       <PetsPanel />
       <RebirthPanel />
+      <ShopPanel />
       <ControlsPanel />
       {message && <Notice message={message} />}
 
@@ -608,7 +717,7 @@ export function GameHUD() {
         anything parked there hides them. The one thing a player has to be able to see
         in a game about hitting things is the thing doing the hitting.
 
-        Power, speed and the multiplier share one line; the boosts and the auto
+        Ammo, speed and the multiplier share one line; the boosts and the auto
         clickers share another that scrolls sideways when it has to, so all five stay
         reachable however narrow the screen is.
       */}
@@ -631,28 +740,29 @@ export function GameHUD() {
       >
         {level >= MAX_LEVEL ? (
           /*
-            This used to read "Rebirth needed to level up!" and point at nothing:
-            there was no rebirth in the game, so the one instruction it gave a player
-            who had maxed the bar was an instruction they could not follow. It opens
-            the panel now, and says what the trade is worth.
+            The reference game's own words, and this time they point at something:
+            clicking it opens the Rebirth panel, which says what the trade is worth.
           */
           <button
             type="button"
             onClick={() => useGame.getState().toggleRebirthPanel(true)}
-            className={`pointer-events-auto cursor-pointer text-red-400 transition hover:brightness-125 active:translate-y-0.5 ${
-              touch ? 'text-center text-xs' : 'text-3xl'
+            className={`pointer-events-auto cursor-pointer text-red-500 transition hover:brightness-125 active:translate-y-0.5 ${
+              touch ? 'text-center text-sm' : 'text-4xl'
             }`}
             style={OUTLINE}
           >
-            Level {MAX_LEVEL} MAX &#183; Rebirth for x{rebirthMultiplier(rebirths + 1)} Power!
+            Rebirth needed to level up!{' '}
+            <span className={`text-yellow-300 ${touch ? 'text-xs' : 'text-2xl'}`}>
+              (x{rebirthMultiplier(rebirths + 1)} Power)
+            </span>
           </button>
         ) : (
-          power === 0 && (
+          ammo === 0 && (
             <div
               className={`animate-pulse text-white ${touch ? 'text-center text-xs' : 'text-2xl'}`}
               style={OUTLINE}
             >
-              {touch ? 'Tap the sword to swing!' : 'Click to swing your sword!'}
+              {touch ? 'Tap 🔫 to shoot!' : 'Click to shoot your gun!'}
             </div>
           )
         )}
@@ -661,22 +771,20 @@ export function GameHUD() {
           <>
             <div className="flex items-baseline justify-center gap-3 text-white" style={OUTLINE}>
               {/* Click popups fly to this element; the value bounces as it changes. */}
-              <span data-power-counter className="text-lg">
-                Power:{' '}
-                <span key={power} className="power-bump text-yellow-300">
-                  {formatNumber(power)}
-                </span>
+              <span data-ammo-counter className="flex items-center gap-1 text-lg">
+                <AmmoIcon className="h-5 w-5" />
+                <span key={ammo} className="power-bump">
+                  {formatNumber(ammo)}
+                </span>{' '}
+                Ammo
               </span>
               <span className="flex items-center gap-0.5 text-xs text-sky-300">
                 <ShoeIcon className="h-4 w-4" />
                 {WALK_SPEED}
               </span>
-              <span className="flex items-center gap-0.5 text-xs text-sky-300">
-                <SwordIcon className="h-4 w-4" />
-                {multiplier.toFixed(2)}x
-              </span>
+              <span className="text-xs text-lime-300">{multiplier.toFixed(2)}x Power</span>
             </div>
-            <LevelBar power={power} />
+            <LevelBar ammo={ammo} />
             {/* pt-3.5 leaves room for the price tags, which hang above each button. */}
             <div className="pointer-events-auto flex gap-1.5 overflow-x-auto pt-3.5">
               {BOOSTS.map((def) => (
@@ -688,11 +796,12 @@ export function GameHUD() {
           </>
         ) : (
           <>
-            <div data-power-counter className="text-4xl text-white" style={OUTLINE}>
-              Power:{' '}
-              <span key={power} className="power-bump text-yellow-300">
-                {formatNumber(power)}
+            <div data-ammo-counter className="flex items-center gap-2 text-5xl text-white" style={OUTLINE}>
+              <AmmoIcon className="h-12 w-12" />
+              <span key={ammo} className="power-bump">
+                {formatNumber(ammo)}
               </span>
+              Ammo
             </div>
             <div className="mt-1 flex w-full max-w-4xl items-stretch gap-3">
             <div className="flex w-44 shrink-0 flex-col items-end justify-start gap-1 pt-2 text-2xl text-sky-300" style={OUTLINE}>
@@ -700,14 +809,11 @@ export function GameHUD() {
                 <ShoeIcon className="h-8 w-8" />
                 Speed: {WALK_SPEED}
               </span>
-              <span className="flex items-center gap-1 whitespace-nowrap">
-                <SwordIcon className="h-8 w-8" />
-                {multiplier.toFixed(2)}x Power
-              </span>
+              <span className="whitespace-nowrap text-lime-300">{multiplier.toFixed(2)}x Power</span>
             </div>
 
             <div className="flex min-w-0 flex-1 flex-col gap-4">
-              <LevelBar power={power} />
+              <LevelBar ammo={ammo} />
               <div className="flex gap-3">
                 {BOOSTS.map((def) => (
                   <BoostButton key={def.multiplier} def={def} now={now} />

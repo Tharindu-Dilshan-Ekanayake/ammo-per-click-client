@@ -10,7 +10,7 @@ const ROWS = [
   ['A  D', 'turn the camera'],
   ['Space', 'jump'],
   ['Shift', 'sprint'],
-  ['Left-click', 'swing sword / hit walls'],
+  ['Left-click', 'shoot / hit walls / hit the boss'],
   ['E', 'buy / unlock / equip / open'],
   ['Hold E', 'cash in at a Win pad'],
   ['Right-drag', 'turn the camera'],

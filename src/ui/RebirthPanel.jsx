@@ -9,12 +9,12 @@ import {
   levelFor,
   MAX_REBIRTHS,
   rebirthMultiplier,
-  rebirthPower,
+  rebirthAmmo,
 } from '../game/progression'
 
 /**
- * The Rebirth panel: give up every point of Power for a permanent multiplier on
- * every click after it.
+ * The Rebirth panel: give up all your Ammo for a permanent multiplier on every
+ * click after it.
  *
  * Laid out after the game this one takes its shape from - a "current" column, an
  * arrow, and an "after" column, so the trade reads in one glance rather than a
@@ -23,7 +23,7 @@ import {
  * see game/progression.js for why moving it breaks the arithmetic this game counts
  * in.
  *
- * Nothing but Power is spent, and the panel says so on its face. A button that wipes
+ * Nothing but Ammo is spent, and the panel says so on its face. A button that wipes
  * the biggest number on the screen is frightening, and a player who is not certain
  * what else goes with it simply never presses it.
  */
@@ -117,7 +117,7 @@ function TradeRow({ emoji, from, to, touch }) {
  * for a second press the player has long since forgotten making the first one.
  */
 function RebirthDialog() {
-  const power = useGame((s) => s.power)
+  const ammo = useGame((s) => s.ammo)
   const rebirths = useGame((s) => s.rebirths)
   const touch = useTouchDevice()
   // Two presses, always. The first only asks; nothing is spent until the second.
@@ -133,9 +133,9 @@ function RebirthDialog() {
   }, [])
 
   const maxedOut = rebirths >= MAX_REBIRTHS
-  const need = rebirthPower(rebirths)
-  const ready = canRebirth(power, rebirths)
-  const fraction = maxedOut ? 1 : Math.min(1, power / need)
+  const need = rebirthAmmo(rebirths)
+  const ready = canRebirth(ammo, rebirths)
+  const fraction = maxedOut ? 1 : Math.min(1, ammo / need)
   const close = () => useGame.getState().toggleRebirthPanel(false)
 
   return (
@@ -159,7 +159,7 @@ function RebirthDialog() {
           </span>
           <div className={`flex items-center ${touch ? 'gap-2' : 'gap-3'}`}>
             <span className={`text-white/90 ${touch ? 'text-base' : 'text-2xl'}`} style={OUTLINE}>
-              Level {levelFor(power)}
+              Level {levelFor(ammo)}
             </span>
             <PanelButton
               colors={['#ff6a6a', '#d02b2b']}
@@ -173,7 +173,7 @@ function RebirthDialog() {
 
         <div className={`flex flex-col ${touch ? 'gap-2' : 'gap-3'}`}>
           <TradeRow
-            emoji="⚔️"
+            emoji="🔫"
             from={`x${rebirthMultiplier(rebirths)}`}
             to={maxedOut ? 'MAX' : `x${rebirthMultiplier(rebirths + 1)}`}
             touch={touch}
@@ -186,7 +186,7 @@ function RebirthDialog() {
           />
 
           {/*
-            How close the next one is, measured in Power rather than in levels. The
+            How close the next one is, measured in Ammo rather than in levels. The
             level bar tops out at MAX_LEVEL long before the later rebirths are
             affordable, so a level reading would sit at "full" for hours and tell the
             player nothing about the thing they are actually waiting for.
@@ -206,7 +206,7 @@ function RebirthDialog() {
               <span className={`text-white ${touch ? 'text-sm' : 'text-2xl'}`} style={OUTLINE}>
                 {maxedOut
                   ? 'Every Rebirth done!'
-                  : `${formatNumber(power)} / ${formatNumber(need)} Power`}
+                  : `${formatNumber(ammo)} / ${formatNumber(need)} Ammo`}
               </span>
             </div>
           </div>
@@ -218,7 +218,7 @@ function RebirthDialog() {
             className={touch ? 'text-xl' : 'text-3xl'}
           >
             {/*
-              What is missing, in Power, because Power is the only thing the gate
+              What is missing, in Ammo, because Ammo is the only thing the gate
               actually measures. This used to read "Reach Level 20 to Rebirth",
               which is true of the first rebirth and a lie about every one after it:
               the second costs five times what the last level does, so a player
@@ -228,7 +228,7 @@ function RebirthDialog() {
             {maxedOut
               ? 'Nothing left to Rebirth'
               : !ready
-                ? `${formatNumber(need - power)} more Power`
+                ? `${formatNumber(need - ammo)} more Ammo`
                 : confirming
                   ? 'Tap again to confirm'
                   : 'Rebirth'}
@@ -238,7 +238,7 @@ function RebirthDialog() {
             className={`text-center text-white/75 ${touch ? 'text-[11px]' : 'text-base'}`}
             style={CHIP}
           >
-            Only Power is spent. Your Wins, swords, pets and trainers all stay.
+            Only Ammo is spent. Your Wins, guns, pets and targets all stay.
           </span>
         </div>
       </div>
@@ -324,9 +324,9 @@ export function RebirthPanel() {
 /** The left-rail button that opens the panel. */
 export function RebirthButton() {
   const touch = useTouchDevice()
-  const power = useGame((s) => s.power)
+  const ammo = useGame((s) => s.ammo)
   const rebirths = useGame((s) => s.rebirths)
-  const ready = canRebirth(power, rebirths)
+  const ready = canRebirth(ammo, rebirths)
 
   return (
     <button

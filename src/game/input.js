@@ -101,23 +101,23 @@ export function readTurn() {
 }
 
 /**
- * Swings asked for by something that does not know where the player is - the
- * on-screen sword button, and a tap on the view.
+ * Shots asked for by something that does not know where the player is - the
+ * on-screen fire button, and a tap on the view.
  *
- * Queued rather than fired, because a swing needs the player's position (a stage
+ * Queued rather than fired, because a shot needs the player's position (a stage
  * wall uses it to tell which side it was hit from) and the popup needs them on
- * screen, and only the frame loop has either. SwingInput drains this each frame.
+ * screen, and only the frame loop has either. ShootInput drains this each frame.
  */
-let pendingSwings = 0
+let pendingShots = 0
 
-export const requestSwing = () => {
+export const requestShot = () => {
   // A finger can out-run the frame rate; anything past a couple in one frame is
-  // noise, and letting it build up would keep swinging after the tapping stopped.
-  pendingSwings = Math.min(pendingSwings + 1, 2)
+  // noise, and letting it build up would keep firing after the tapping stopped.
+  pendingShots = Math.min(pendingShots + 1, 2)
 }
 
-export function takeSwings() {
-  const n = pendingSwings
-  pendingSwings = 0
+export function takeShots() {
+  const n = pendingShots
+  pendingShots = 0
   return n
 }

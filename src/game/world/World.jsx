@@ -4,29 +4,34 @@ import { Object3D, Vector3 } from 'three'
 
 import { useGame } from '../gameStore'
 import { playerPosition } from '../playerAnchor'
+import { getGun } from '../guns'
 import { qualityOf, useSettings } from '../settings'
-import { getSword } from '../swords'
+import BossArena from './BossArena'
 import { Backdrop, Clouds, Crown, Crystal, GlowPad, Label, Sky } from './Effects'
 import EggStand from './EggStand'
 import GateSign from './GateSign'
+import GunPad from './GunPad'
+import GunStatue from './GunStatue'
 import InfinityWall from './InfinityWall'
 import { buildLayout } from './layout'
 import { ShaderWarmup, useBand, useNearField, WARMUP_VIEW } from './nearField'
 import Portal, { CENTER_Y as PORTAL_Y, LIGHT_Z as PORTAL_LIGHT_Z } from './Portal'
 import Roofs from './Roofs'
+import SpaceDecor from './SpaceDecor'
 import StageWall from './StageWall'
 import StaticBlocks from './StaticBlocks'
-import SwordPad from './SwordPad'
-import SwordStatue from './SwordStatue'
 import { GATE_Z } from './themes'
 import TrainingDummy from './TrainingDummy'
 import WinPad from './WinPad'
 
-/** This far into the lobby, every broken wall rebuilds. */
+/**
+ * This far into a lobby, every broken wall rebuilds. Space World's hub and the boss
+ * arena both sit on the lobby's side of this line, so they count as lobbies too.
+ */
 const LOBBY_RESET_Z = GATE_Z + 6
 
 /** Where each kind of thing sits, for the distance test. */
-const atWall = (wall) => [0, 0, wall.zFront]
+const atWall = (wall) => [wall.x ?? 0, 0, wall.zFront]
 const atPosition = (item) => item.position
 
 /**
@@ -40,7 +45,7 @@ const atPosition = (item) => item.position
  *
  * The items are memoised too, so even a list that did change only does work for what
  * actually entered or left it. That holds because buildLayout() runs once and the
- * `pad`, `position`, `theme` and `sword` objects spread below are the same references
+ * `pad`, `position`, `theme` and `gun` objects spread below are the same references
  * every time - anything added here has to keep that property, which means building
  * its props in the layout rather than in the JSX.
  */
@@ -61,7 +66,9 @@ const CloudLayer = memo(Clouds)
 const Ground = memo(Backdrop)
 const Gate = memo(GateSign)
 const Cave = memo(InfinityWall)
-const Statue = memo(SwordStatue)
+const Statue = memo(GunStatue)
+const Arena = memo(BossArena)
+const Space = memo(SpaceDecor)
 
 const Wall = memo(StageWall)
 const Win = memo(WinPad)
@@ -70,7 +77,7 @@ const Glow = memo(GlowPad)
 const Gold = memo(Crown)
 const Shard = memo(Crystal)
 const Sign = memo(Label)
-const Blade = memo(SwordPad)
+const Gun = memo(GunPad)
 const Dummy = memo(TrainingDummy)
 const Egg = memo(EggStand)
 
@@ -95,8 +102,8 @@ const Crystals = memo(function Crystals({ items }) {
 const Labels = memo(function Labels({ items }) {
   return items.map((label) => <Sign key={`${label.position}`} {...label} />)
 })
-const SwordPads = memo(function SwordPads({ items }) {
-  return items.map((pad) => <Blade key={pad.sword.id} {...pad} />)
+const GunPads = memo(function GunPads({ items }) {
+  return items.map((pad) => <Gun key={pad.gun.id} {...pad} />)
 })
 const TrainerPads = memo(function TrainerPads({ items }) {
   return items.map((pad) => <Dummy key={pad.trainer.id} {...pad} />)
@@ -209,7 +216,7 @@ export function World({ bodyRef }) {
       { key: 'crowns', list: layout.crowns, at: atPosition },
       { key: 'crystals', list: layout.crystals, at: atPosition },
       { key: 'labels', list: layout.labels, at: atPosition },
-      { key: 'swordPads', list: layout.swordPads, at: atPosition },
+      { key: 'gunPads', list: layout.gunPads, at: atPosition },
       { key: 'trainerPads', list: layout.trainerPads, at: atPosition },
       { key: 'eggStands', list: layout.eggStands, at: atPosition },
     ],
@@ -217,7 +224,7 @@ export function World({ bodyRef }) {
   )
   const near = useNearField(fields, band, view)
   // Looked up once: a fresh lookup every render would defeat Statue's memo.
-  const statueSword = useMemo(() => getSword(layout.statue.swordId), [layout])
+  const statueGun = useMemo(() => getGun(layout.statue.gunId), [layout])
 
   return (
     <>
@@ -229,6 +236,8 @@ export function World({ bodyRef }) {
       <WallReset bodyRef={bodyRef} />
       <Gate />
       <Cave position={layout.cave.position} />
+      <Arena position={layout.boss.position} arenaHalf={layout.boss.arenaHalf} />
+      <Space center={layout.space.center} />
 
       <Walls items={near.walls} />
       <WinPads items={near.winPads} />
@@ -238,11 +247,11 @@ export function World({ bodyRef }) {
       <Crowns items={near.crowns} />
       <Crystals items={near.crystals} />
       <Labels items={near.labels} />
-      <SwordPads items={near.swordPads} />
+      <GunPads items={near.gunPads} />
       <TrainerPads items={near.trainerPads} />
       <EggStands items={near.eggStands} />
 
-      <Statue position={layout.statue.position} sword={statueSword} />
+      <Statue position={layout.statue.position} gun={statueGun} />
       {!warmed && <ShaderWarmup onDone={onWarm} />}
     </>
   )

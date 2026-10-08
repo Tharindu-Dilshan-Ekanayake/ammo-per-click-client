@@ -16,33 +16,37 @@ const TIP_MS = 3200
 
 const TIPS = [
   'Break 10 walls to reach the next stage!',
+  'Stages pay 1, 5, 10, 50 Wins... and it only gets bigger.',
   'Hold E on a Win pad to cash in your Wins.',
-  'Stand on a Train pad and it swings for you.',
-  'Better swords give more Power per click.',
-  'Broken walls rebuild when you go back to the lobby.',
+  'Stand on a target\u2019s pad and you shoot it automatically.',
+  'Better guns give more Ammo per click.',
+  'Rebirth 1 opens the Boss Arena. Rebirth 3 opens Space World!',
+  'Log in and your Ammo, Wins and Rebirths are saved for next time.',
 ]
 
-function Sword() {
+/** A blocky pistol, recoiling on a loop. */
+function Gun() {
   return (
     <svg viewBox="0 0 100 100" aria-hidden="true" className="loading-swing h-24 w-24 drop-shadow-[0_5px_0_rgba(0,0,0,0.8)]">
       <defs>
-        <linearGradient id="loading-blade" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0" stopColor="#ffffff" />
-          <stop offset="1" stopColor="#8fd3ff" />
+        <linearGradient id="loading-gun" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#c07bff" />
+          <stop offset="1" stopColor="#6a2fd0" />
         </linearGradient>
       </defs>
       <g stroke="#1b1b25" strokeWidth="5" strokeLinejoin="round">
-        <path d="M50 4 L59 17 L59 62 L41 62 L41 17 Z" fill="url(#loading-blade)" />
-        <rect x="27" y="62" width="46" height="10" rx="3" fill="#ffc93c" />
-        <rect x="44" y="72" width="12" height="16" fill="#8a5a2b" />
-        <rect x="40" y="86" width="20" height="9" rx="4" fill="#ffc93c" />
+        <rect x="10" y="30" width="72" height="22" rx="3" fill="url(#loading-gun)" />
+        <rect x="80" y="34" width="12" height="12" fill="#ffc93c" />
+        <path d="M22 50 L44 50 L40 86 L18 86 Z" fill="#3a3f4a" />
+        <path d="M44 50 Q52 66 44 66" fill="none" />
+        <rect x="16" y="36" width="58" height="5" fill="#ffe680" stroke="none" />
       </g>
     </svg>
   )
 }
 
 /**
- * Full-screen loading screen over the game: title, a swinging sword, a progress bar
+ * Full-screen loading screen over the game: title, a recoiling gun, a progress bar
  * and tips. Fades out once the map has been drawn and the avatar is ready (or after
  * AVATAR_TIMEOUT_MS, with a stand-in body in its place).
  */
@@ -110,9 +114,9 @@ export function LoadingScreen() {
         background: 'radial-gradient(circle at 50% 35%, #5b8cff 0%, #3b2a8f 55%, #170f3a 100%)',
       }}
     >
-      <Sword />
+      <Gun />
       <div style={OUTLINE} className="leading-none">
-        <div className="text-6xl text-yellow-300 sm:text-7xl">+1 POWER</div>
+        <div className="text-6xl text-yellow-300 sm:text-7xl">+1 AMMO</div>
         <div className="mt-2 text-4xl text-white sm:text-5xl">PER CLICK</div>
       </div>
 

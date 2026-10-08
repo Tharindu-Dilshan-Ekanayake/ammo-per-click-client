@@ -67,37 +67,38 @@ canvas {
 }
 
 /*
- * "⚔ +N" click popup: pops up at the click, rises a little, then accelerates into
- * the Power counter (--dx/--dy away). Keep the duration in sync with POPUP_MS in
- * gameStore.js.
+ * "+N Ammo" click popup: pops up at the click with a little twist (--rot), rises,
+ * then accelerates into the Ammo counter (--dx/--dy away). Keep the duration in sync
+ * with POPUP_MS in gameStore.js.
  */
 @keyframes click-popup {
   0% {
-    transform: translate(-50%, -50%) scale(0.4);
+    transform: translate(-50%, -50%) scale(0.3) rotate(var(--rot, 0deg));
     opacity: 0;
   }
   12% {
-    transform: translate(-50%, -90%) scale(1.3);
+    transform: translate(-50%, -100%) scale(1.35) rotate(0deg);
     opacity: 1;
   }
-  35% {
-    transform: translate(-50%, -120%) scale(1);
+  40% {
+    transform: translate(-50%, -125%) scale(1);
     opacity: 1;
     animation-timing-function: cubic-bezier(0.55, 0, 0.9, 0.4);
   }
   100% {
-    transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(0.5);
-    opacity: 0.3;
+    transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(0.45);
+    opacity: 0.2;
   }
 }
 
 .click-popup {
   position: fixed;
-  animation: click-popup 1s ease-out forwards;
+  animation: click-popup 1.1s ease-out forwards;
   will-change: transform, opacity;
+  filter: drop-shadow(0 0 10px rgba(255, 200, 60, 0.55));
 }
 
-/* Power counter bounce on every gain. */
+/* Ammo counter bounce on every gain. */
 @keyframes power-bump {
   0% {
     transform: scale(1);
@@ -119,7 +120,7 @@ canvas {
 /*
  * The rebirth moment.
  *
- * Giving up every point of Power is the largest thing a player ever does in this
+ * Giving up all your Ammo is the largest thing a player ever does in this
  * game, and it used to look like the smallest: a line of toast, the same as running
  * out of Wins. The flash is what makes the trade land - a burst of light, the new
  * multiplier held for a beat, and then back to a counter reading zero.
@@ -200,20 +201,21 @@ canvas {
   animation: prompt-pop 0.18s ease-out;
 }
 
-/* Loading screen: the sword swings, stripes slide along the bar, tips fade in. */
+/* Loading screen: the gun fires and kicks, stripes slide along the bar, tips fade in. */
 @keyframes loading-swing {
   0%,
+  60%,
   100% {
-    transform: rotate(-25deg);
+    transform: rotate(0deg);
   }
-  50% {
-    transform: rotate(25deg);
+  8% {
+    transform: rotate(-22deg) translateX(-6px);
   }
 }
 
 .loading-swing {
-  animation: loading-swing 0.9s ease-in-out infinite;
-  transform-origin: 50% 85%;
+  animation: loading-swing 0.8s ease-out infinite;
+  transform-origin: 30% 70%;
 }
 
 @keyframes loading-stripes {
