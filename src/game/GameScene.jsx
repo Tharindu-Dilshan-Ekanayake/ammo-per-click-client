@@ -70,12 +70,12 @@ function WorldReady() {
  */
 function LocalEnvironment() {
   return (
-    <Environment resolution={64} frames={1} environmentIntensity={0.35}>
+    <Environment resolution={64} frames={1} environmentIntensity={0.16}>
       <color attach="background" args={['#9fc6e8']} />
-      <Lightformer form="rect" intensity={2} position={[0, 10, 0]} rotation-x={Math.PI / 2} scale={[20, 20, 1]} />
+      <Lightformer form="rect" intensity={1.4} position={[0, 10, 0]} rotation-x={Math.PI / 2} scale={[20, 20, 1]} />
       <Lightformer
         form="rect"
-        intensity={1}
+        intensity={0.6}
         color="#ffe9c4"
         position={[10, 3, 0]}
         rotation-y={-Math.PI / 2}
@@ -83,7 +83,7 @@ function LocalEnvironment() {
       />
       <Lightformer
         form="rect"
-        intensity={0.6}
+        intensity={0.35}
         color="#bfe0ff"
         position={[-10, 3, 0]}
         rotation-y={Math.PI / 2}
@@ -104,9 +104,10 @@ const START = (() => {
   return { boss: BOSS_SPAWN, space: SPACE_SPAWN }[at] ?? SPAWN
 })()
 
-export function GameScene() {
+export function GameScene({ bodyRef: externalBodyRef }) {
   const { game } = useBloxity()
-  const playerBodyRef = useRef(null)
+  const localPlayerBodyRef = useRef(null)
+  const playerBodyRef = externalBodyRef ?? localPlayerBodyRef
   // The eased stand-in for the body, which is what anything on screen follows.
   // See game/playerAnchor.js for why the two are not the same thing.
   const playerAnchorRef = useRef(null)
@@ -175,7 +176,7 @@ export function GameScene() {
     >
       <ShadowToggle enabled={shadows} />
       <fog attach="fog" args={['#cfeaff', 140, 420]} />
-      <hemisphereLight args={['#d6ecff', '#6b8f5a', 0.7]} />
+      <hemisphereLight args={['#d6ecff', '#6b8f5a', 0.42]} />
       <SunLight bodyRef={playerBodyRef} anchorRef={playerAnchorRef} />
 
       <LocalEnvironment />

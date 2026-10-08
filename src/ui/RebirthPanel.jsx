@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 
 import { useTouchDevice } from '../game/device'
 import { formatNumber } from '../game/format'
@@ -321,6 +321,29 @@ export function RebirthPanel() {
   )
 }
 
+/** The rebirth arrows, shared by the HUD button and the Wins counter. */
+export function RebirthIcon({ className = 'h-8 w-8' }) {
+  const id = useId().replace(/[^a-zA-Z0-9_-]/g, '')
+  return (
+    <svg viewBox="0 0 128 128" className={className} style={EMOJI} aria-hidden="true">
+      <defs>
+        <linearGradient id={`${id}-pink`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#ff91b2" />
+          <stop offset="1" stopColor="#ed1478" />
+        </linearGradient>
+        <linearGradient id={`${id}-blue`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#a9e8ff" />
+          <stop offset="1" stopColor="#72cefa" />
+        </linearGradient>
+      </defs>
+      <path d="M21 68c-7-13-4-30 7-42C40 13 57 8 73 11c13 2 24 9 32 20l8-6 8 38c1 6-3 11-9 12l-34 7 11-13c-6-8-14-12-24-12-12 0-21 7-25 17z" fill={`url(#${id}-pink)`} stroke="#111318" strokeWidth="7" strokeLinejoin="round" />
+      <path d="M107 60c7 13 4 30-7 42-12 13-29 18-45 15-13-2-24-9-32-20l-8 6-8-38c-1-6 3-11 9-12l34-7-11 13c6 8 14 12 24 12 12 0 21-7 25-17z" fill={`url(#${id}-blue)`} stroke="#111318" strokeWidth="7" strokeLinejoin="round" />
+      <path d="M21 67c7 12 18 20 32 22 16 2 31-7 37-22l17 7c-7 20-27 33-49 31-18-1-33-11-41-26z" fill="#f8fbff" />
+      <path d="m46 44 14 1 17 12-11 14-15-5-10-11z" fill="#111318" stroke="#111318" strokeWidth="4" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 /** The left-rail button that opens the panel. */
 export function RebirthButton() {
   const touch = useTouchDevice()
@@ -337,7 +360,7 @@ export function RebirthButton() {
       }`}
       style={{
         borderColor: INK,
-        background: 'linear-gradient(to bottom, #c77dff, #7a42c8)',
+        background: 'linear-gradient(to bottom, #ff8585, #d6283d)',
         boxShadow: 'inset 0 -5px 0 rgba(0,0,0,0.22), 0 4px 0 rgba(0,0,0,0.45)',
       }}
     >
@@ -346,9 +369,7 @@ export function RebirthButton() {
       {/* The circular arrows, as the reference art has them. The star still means
           "how many", and it is what the badge and the panel's second row count in -
           the arrows are the verb, the star is the score. */}
-      <span className={touch ? 'text-2xl' : 'text-4xl'} style={EMOJI} aria-hidden>
-        🔄
-      </span>
+      <RebirthIcon className={touch ? 'h-9 w-9' : 'h-10 w-10'} />
       {/* Two sizes down from the Pets tile next to it: "Rebirth" is three letters
           longer than "Pets" and ran off both sides of the button at text-sm. */}
       <span className={`leading-none text-white ${touch ? 'text-[9px]' : 'text-xs'}`} style={CHIP}>

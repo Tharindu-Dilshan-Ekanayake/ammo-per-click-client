@@ -130,6 +130,36 @@ const SHAPES = {
 const shapeOf = (gun) => SHAPES[gun.type] ?? SHAPES.pistol
 const partsOf = (gun) => geometry(`gun-${gun.type}`, shapeOf(gun).parts)
 
+/** A small sight rail and side fasteners to give every weapon a finished silhouette. */
+const DETAIL_LAYOUT = {
+  pistol: { top: 0.205, z: 0.12, length: 0.28, halfWidth: 0.07, sideY: 0.1, sideZ: 0.22 },
+  blaster: { top: 0.235, z: 0.1, length: 0.24, halfWidth: 0.1, sideY: 0.11, sideZ: 0.12 },
+  rifle: { top: 0.2, z: 0.12, length: 0.42, halfWidth: 0.07, sideY: 0.1, sideZ: 0.05 },
+  shotgun: { top: 0.205, z: 0.06, length: 0.32, halfWidth: 0.08, sideY: 0.1, sideZ: 0.04 },
+  launcher: { top: 0.35, z: 0.12, length: 0.38, halfWidth: 0.14, sideY: 0.2, sideZ: 0.1 },
+  minigun: { top: 0.265, z: 0.02, length: 0.3, halfWidth: 0.13, sideY: 0.13, sideZ: 0.02 },
+}
+
+function detailsOf(type) {
+  return geometry(`gun-details-${type}`, () => {
+    const layout = DETAIL_LAYOUT[type] ?? DETAIL_LAYOUT.pistol
+    const sightZ = layout.length * 0.38
+    const fastener = (x) => {
+      const g = new CylinderGeometry(0.018, 0.018, 0.012, 8)
+      g.rotateZ(Math.PI / 2)
+      g.translate(x, layout.sideY, layout.sideZ)
+      return g
+    }
+    return merge([
+      box(0.07, 0.025, layout.length, 0, layout.top, layout.z),
+      box(0.045, 0.055, 0.045, 0, layout.top + 0.035, layout.z - sightZ),
+      box(0.045, 0.055, 0.045, 0, layout.top + 0.035, layout.z + sightZ),
+      fastener(layout.halfWidth),
+      fastener(-layout.halfWidth),
+    ])
+  })
+}
+
 /**
  * Blocky gun built from boxes and tubes. The grip is at the origin and the barrel
  * points down +Z, so holders only need to rotate it.
@@ -173,7 +203,10 @@ export function GunModel({ gun, minGlow = 0, flashRef, local = false }) {
         <meshStandardMaterial color={gun.body} metalness={0.35} roughness={0.45} />
       </mesh>
       <mesh geometry={parts.accent} castShadow>
-        <meshStandardMaterial color={gun.accent} metalness={0.55} roughness={0.35} />
+        <meshStandardMaterial color={gun.accent} metalness={0.72} roughness={0.28} />
+      </mesh>
+      <mesh geometry={detailsOf(gun.type)} castShadow>
+        <meshStandardMaterial color="#252c38" metalness={0.8} roughness={0.3} />
       </mesh>
       <mesh geometry={parts.trim}>
         <meshStandardMaterial
@@ -181,7 +214,8 @@ export function GunModel({ gun, minGlow = 0, flashRef, local = false }) {
           color={gun.trim}
           emissive={gun.trim}
           emissiveIntensity={baseGlow}
-          roughness={0.3}
+          metalness={0.55}
+          roughness={0.26}
         />
       </mesh>
       {local && (

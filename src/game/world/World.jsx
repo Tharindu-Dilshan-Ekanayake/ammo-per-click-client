@@ -294,7 +294,7 @@ export function SunLight({ bodyRef, anchorRef }) {
         ref={light}
         target={target}
         castShadow
-        intensity={1.7}
+        intensity={1.35}
         shadow-mapSize={[size, size]}
         shadow-camera-left={-SHADOW_EXTENT}
         shadow-camera-right={SHADOW_EXTENT}
