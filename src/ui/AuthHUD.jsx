@@ -60,11 +60,12 @@ function BuxBalance() {
   )
 }
 
-/** What the cloud mark beside your name says, and in what colour. */
+/**
+ * What the cloud mark beside your name says, and in what colour. Saving goes on
+ * quietly in the background: only a problem, or the first load, is worth a word.
+ */
 const CLOUD = {
   loading: ['Loading…', 'text-sky-200'],
-  saving: ['Saving…', 'text-sky-200'],
-  saved: ['Saved', 'text-lime-300'],
   offline: ['Not saved yet', 'text-amber-300'],
 }
 
