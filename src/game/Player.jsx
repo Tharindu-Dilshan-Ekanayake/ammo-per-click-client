@@ -5,6 +5,8 @@ import { Quaternion, Vector3 } from 'three'
 
 import { aim } from './aim'
 import { AvatarBoundary, StandInBody } from './AvatarBoundary'
+import { useBossFight } from './bossFight'
+import { leaveFootprint } from './footprintSets'
 import { useGame } from './gameStore'
 import { readInput } from './input'
 import PlayerAvatar from './PlayerAvatar'
@@ -124,8 +126,9 @@ export function Player({ position = [0, 3, 0], onAvatarReady, bodyRef: externalB
     _input.set(k.x, 0, k.z)
 
     const linvel = body.linvel()
+    const staggered = useBossFight.getState().staggerUntil > performance.now()
 
-    const push = _input.length()
+    const push = staggered ? 0 : _input.length()
     if (push > 0.02) {
       // Normalise the direction but keep how hard it was pushed: full deflection is
       // a run, half is a walk. A key is always full.
@@ -163,7 +166,7 @@ export function Player({ position = [0, 3, 0], onAvatarReady, bodyRef: externalB
       }
     } else {
       // Damp horizontal motion to a stop; don't touch the fall speed.
-      body.setLinvel({ x: linvel.x * 0.8, y: linvel.y, z: linvel.z * 0.8 }, true)
+      if (!staggered) body.setLinvel({ x: linvel.x * 0.8, y: linvel.y, z: linvel.z * 0.8 }, true)
 
       // Training: turn to face the target. Beside a stage wall: turn to face the
       // wall. In the boss arena: turn to face the boss.
@@ -183,7 +186,7 @@ export function Player({ position = [0, 3, 0], onAvatarReady, bodyRef: externalB
     }
 
     // --- Jump --------------------------------------------------------------------
-    if (k.jump && jumpCooldown.current === 0 && grounded) {
+    if (k.jump && !staggered && jumpCooldown.current === 0 && grounded) {
       const v = body.linvel()
       body.setLinvel({ x: v.x, y: JUMP_VELOCITY, z: v.z }, true)
       jumpCooldown.current = JUMP_COOLDOWN_S
@@ -221,7 +224,12 @@ export function Player({ position = [0, 3, 0], onAvatarReady, bodyRef: externalB
     const beat = Math.floor(s.phase / Math.PI - 0.5)
     if (beat !== s.beat) {
       s.beat = beat
-      if (grounded && speed > 1) playSound('step', { sprint: k.sprint })
+      if (grounded && speed > 1) {
+        playSound('step', { sprint: k.sprint })
+        // Feet first: the capsule's centre is a body's height off the ground.
+        const at = body.translation()
+        leaveFootprint(at.x, at.y - CAPSULE_HALF_HEIGHT - CAPSULE_RADIUS, at.z, Math.atan2(nowVel.x, nowVel.z), beat % 2 ? 1 : -1)
+      }
     }
     if (grounded) {
       if (s.airborne > 0.25 && s.fallSpeed > 4) playSound('land', { strength: Math.min(1, s.fallSpeed / 14) })

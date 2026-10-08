@@ -4,6 +4,7 @@ import GameScene from './game/GameScene'
 import AuthHUD from './ui/AuthHUD'
 import FpsCounter from './ui/FpsCounter'
 import GameHUD from './ui/GameHUD'
+import HowToPlay from './ui/HowToPlay'
 import LoadingScreen from './ui/LoadingScreen'
 import SoundToggle from './ui/SoundToggle'
 import TouchControls from './ui/TouchControls'
@@ -21,6 +22,7 @@ function App() {
       <SoundToggle />
       <FpsCounter />
       <LoadingScreen />
+      <HowToPlay />
     </div>
   )
 }

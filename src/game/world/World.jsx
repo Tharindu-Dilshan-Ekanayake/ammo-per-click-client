@@ -7,12 +7,14 @@ import { playerPosition } from '../playerAnchor'
 import { getGun } from '../guns'
 import { qualityOf, useSettings } from '../settings'
 import BossArena from './BossArena'
+import Leaderboards from './Leaderboards'
 import { Backdrop, Clouds, Crown, Crystal, GlowPad, Label, Sky } from './Effects'
 import EggStand from './EggStand'
 import GateSign from './GateSign'
 import GunPad from './GunPad'
 import GunStatue from './GunStatue'
 import InfinityWall from './InfinityWall'
+import LobbyPathArrows from './LobbyPathArrows'
 import { buildLayout } from './layout'
 import { ShaderWarmup, useBand, useNearField, WARMUP_VIEW } from './nearField'
 import Portal, { CENTER_Y as PORTAL_Y, LIGHT_Z as PORTAL_LIGHT_Z } from './Portal'
@@ -68,6 +70,7 @@ const Gate = memo(GateSign)
 const Cave = memo(InfinityWall)
 const Statue = memo(GunStatue)
 const Arena = memo(BossArena)
+const Boards = memo(Leaderboards)
 const Space = memo(SpaceDecor)
 
 const Wall = memo(StageWall)
@@ -232,11 +235,13 @@ export function World({ bodyRef }) {
       <CloudLayer />
       <Ground />
       <StaticMap blocks={layout.blocks} />
+      <LobbyPathArrows />
       <Ceilings roofs={layout.roofs} />
       <WallReset bodyRef={bodyRef} />
       <Gate />
+      <Boards {...layout.leaderboards} />
       <Cave position={layout.cave.position} />
-      <Arena position={layout.boss.position} arenaHalf={layout.boss.arenaHalf} />
+      <Arena position={layout.boss.position} arenaHalf={layout.boss.arenaHalf} bodyRef={bodyRef} />
       <Space center={layout.space.center} />
 
       <Walls items={near.walls} />

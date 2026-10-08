@@ -24,7 +24,7 @@ export const EGGS = [
   { id: 'rainbow', name: 'Rainbow Egg', cost: 10000000, colors: ['#ff4fd8', '#7ff9ff'], glow: 0.8 },
 
   // --- The Bux egg. Its pet carries the best Wins bonus in the game (see pets.js).
-  { id: 'exclusive', name: 'Exclusive Egg', bux: 199, sku: 'egg_exclusive', colors: ['#bfe4ff', '#3f7cff'], glow: 0.9 },
+  { id: 'exclusive', name: 'Exclusive Egg', bux: 249, sku: 'egg_exclusive', colors: ['#bfe4ff', '#3f7cff'], glow: 0.9 },
 ]
 
 /** The egg on the VIP platform. */

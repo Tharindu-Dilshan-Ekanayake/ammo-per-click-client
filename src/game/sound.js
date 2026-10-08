@@ -257,6 +257,27 @@ const SOUNDS = {
     hiss({ filter: 'lowpass', freq: 700, to: 250, attack: 0.1, decay: 0.9, gain: 0.18 })
   },
 
+  /** The boss hurling fire: a rising roar of flame. */
+  fireThrow() {
+    hiss({ freq: 300, to: 1800, q: 0.7, attack: 0.03, decay: 0.3, gain: 0.22 })
+    hiss({ filter: 'lowpass', freq: 600, to: 200, attack: 0.02, decay: 0.35, gain: 0.18 })
+    tone({ type: 'sawtooth', freq: 140, to: 70, attack: 0.02, decay: 0.25, gain: 0.03 })
+  },
+
+  /** A fist into the floor, or a meteor landing: a deep boom and a rumble. */
+  slam() {
+    tone({ freq: 90, to: 28, attack: 0.003, decay: 0.7, gain: 0.6 })
+    hiss({ filter: 'lowpass', freq: 1400, to: 90, attack: 0.005, decay: 0.8, gain: 0.45 })
+    hiss({ filter: 'highpass', freq: 2200, attack: 0.001, decay: 0.06, gain: 0.15 })
+  },
+
+  /** The player taking a hit in the arena: a punchy thud and a sharp sting. */
+  playerHurt() {
+    tone({ freq: 220, to: 70, attack: 0.002, decay: 0.2, gain: 0.35 })
+    hiss({ filter: 'bandpass', freq: 1800, q: 2, attack: 0.001, decay: 0.12, gain: 0.2 })
+    tone({ at: 0.04, type: 'square', freq: 180, to: 120, attack: 0.002, decay: 0.12, gain: 0.04 })
+  },
+
   /** Auto Wins paying out: one soft coin. */
   coin() {
     tone({ type: 'square', freq: NOTE.B5, decay: 0.06, gain: 0.03 })
@@ -320,7 +341,7 @@ const SOUNDS = {
 }
 
 /** Shortest gap between two plays of the same sound, so rapid repeats don't pile up. */
-const MIN_GAP_S = { step: 0.08, shoot: 0.03, wallHit: 0.04, bossHit: 0.05, error: 0.25 }
+const MIN_GAP_S = { step: 0.08, shoot: 0.03, wallHit: 0.04, bossHit: 0.05, fireThrow: 0.06, slam: 0.08, error: 0.25 }
 const lastPlayed = {}
 
 /** Plays one of SOUNDS by name. */

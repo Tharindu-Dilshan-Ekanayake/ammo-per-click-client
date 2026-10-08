@@ -38,8 +38,8 @@ export const TRAINERS = [
   // --- Bux targets. Shortcuts rather than an end point: 250x slots between the
   // Wins ladder's 200x and 450x, 1000x above both. Same shape as the Bux guns -
   // you pay to skip a stretch of the grind, not to leave it behind for good.
-  { id: 'vip-1', name: 'VIP Target', multiplier: 250, bux: 99, sku: 'target_vip_250x', color: '#a45cff' },
-  { id: 'vip-2', name: 'Golden VIP Target', multiplier: 1000, bux: 199, sku: 'target_vip_1000x', color: '#ffd23f' },
+  { id: 'vip-1', name: 'VIP Target', multiplier: 250, bux: 179, sku: 'target_vip_250x', color: '#a45cff' },
+  { id: 'vip-2', name: 'Golden VIP Target', multiplier: 1000, bux: 299, sku: 'target_vip_1000x', color: '#ffd23f' },
 
   // --- Space World. Past both VIP targets; only found over there.
   { id: 'space-1', name: 'Moon Target', multiplier: 750, cost: 1000000, world: 2, color: '#d8dce8' },

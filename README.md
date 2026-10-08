@@ -28,7 +28,7 @@ directly — lobbies and cloud saves both.
 | `src/game/walls.js` | wall health and the stage payouts (`STAGE_WINS`) |
 | `src/game/trainers.js` | the shooting targets and their multipliers |
 | `src/game/boss.js` | boss health, rewards and the fight clock |
-| `src/game/passes.js` | Bux passes and Ammo packs |
+| `src/game/passes.js` | Bux passes |
 | `src/game/catalog.js` | every Bux SKU in one list (must match the server's) |
 | `src/game/cloudSave.js` | loading and saving progress on the game server |
 | `src/net/hosting.js` | which back end and matchmaker this page uses |
@@ -72,15 +72,12 @@ charged. The prices below are what the game shows if an IAP is missing.
 | `pass_2x_power` | 2x Power | every click gives double Ammo, forever | 149 |
 | `pass_2x_wins` | 2x Wins | every Wins payout doubled, forever | 99 |
 | `pass_auto_wins` | Auto Wins | best cleared stage's Wins every 10 s while on | 199 |
-| `vip_wins_pad` | VIP Wins Pad | opens the blue 2x pad at every stage | 99 |
-| `gun_phantom_blaster` | Phantom Blaster | VIP gun, +25K Ammo per click | 99 |
-| `gun_celestial_minigun` | Celestial Minigun | VIP gun, +700K Ammo per click | 249 |
-| `target_vip_250x` | VIP Target | 250x shooting target | 99 |
-| `target_vip_1000x` | Golden VIP Target | 1000x shooting target | 199 |
-| `egg_exclusive` | Exclusive Egg | the Tralaledon pet, x20 Wins | 199 |
-| `ammo_pack_100k` | 100K Ammo | 100,000 Ammo, once | 9 |
-| `ammo_pack_1m` | 1M Ammo | 1,000,000 Ammo, once | 29 |
-| `ammo_pack_10m` | 10M Ammo | 10,000,000 Ammo, once | 79 |
+| `vip_wins_pad` | VIP Wins Pad | opens the blue 2x pad at every stage | 179 |
+| `gun_phantom_blaster` | Phantom Blaster | VIP gun, +25K Ammo per click | 199 |
+| `gun_celestial_minigun` | Celestial Minigun | VIP gun, +700K Ammo per click | 349 |
+| `target_vip_250x` | VIP Target | 250x shooting target | 179 |
+| `target_vip_1000x` | Golden VIP Target | 1000x shooting target | 299 |
+| `egg_exclusive` | Exclusive Egg | the Tralaledon pet, x20 Wins | 249 |
 
 The browser console lists any of these the panel does not know yet
 (`[bloxity] these IAPs are not set up in the admin panel yet: …`).

@@ -20,7 +20,7 @@ const RESYNC_MS = 250
 
 /**
  * Keeps us in a lobby on the server: connects on mount, sends our name, avatar,
- * gun, pet and active target whenever they change, and our position and
+ * gun, pet, footprints and active target whenever they change, and our position and
  * shots 20 times a second.
  *
  * Positions are read right after a physics step and stamped with the physics clock
@@ -34,12 +34,14 @@ export function NetSync({ bodyRef }) {
   const gun = useGame((s) => s.equipped)
   // Other players see the pet leading our squad; the wire format carries one.
   const pet = useGame((s) => s.equippedPets[0] ?? null)
+  // The footprints we leave, so everyone else sees them too (only a set we own).
+  const footprints = useGame((s) => (s.footprints && s.ownedFootprints.includes(s.footprints) ? s.footprints : null))
   const trainer = useGame((s) => s.activeTrainer)
   const name = identity?.displayName || identity?.username || 'Player'
 
   const profile = useMemo(
-    () => ({ name, avatar: avatar ? { equipped: avatar, proportions } : null, gun, pet, trainer }),
-    [name, avatar, proportions, gun, pet, trainer],
+    () => ({ name, avatar: avatar ? { equipped: avatar, proportions } : null, gun, pet, trainer, footprints }),
+    [name, avatar, proportions, gun, pet, trainer, footprints],
   )
 
   // Declared before the connect effect, so the first hello already carries it.

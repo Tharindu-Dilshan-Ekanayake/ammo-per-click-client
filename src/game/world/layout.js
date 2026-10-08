@@ -798,6 +798,21 @@ export function buildLayout() {
     style: { bg: '#6b4424', border: '#4a2c14' },
   })
 
+  // --- Leaderboards, east of the welcome board -------------------------------------
+  // Three boards on one frame, the same height as the welcome board and built the
+  // same way: posts and a backing beam behind, so nothing fights with their faces.
+  box(23.2, 0, L - 2.4, 23.8, 9.6, L - 1.8, 'trunk')
+  box(32.4, 0, L - 2.4, 33, 9.6, L - 1.8, 'trunk')
+  box(22.6, 2.4, L - 3, 33.4, 8.8, L - 2.4, 'trunk')
+  labels.push({
+    lines: [{ text: 'LEADERBOARDS', fill: ['#fff6a8', '#ffc21a'] }],
+    position: [28, 9.45, L - 3.04],
+    rotationY: Math.PI,
+    size: [7, 1.1],
+    style: { bg: '#6b4424', border: '#4a2c14' },
+  })
+  const leaderboards = { center: [28, 5.6, L - 3.04], rotationY: Math.PI, width: 3.4, height: 3.4 * (900 / 512), gap: 0.15 }
+
   // --- Boss and Space World portals ----------------------------------------------
   // Side by side on the north plaza, west of the cave's, facing the gate - the same
   // walk from the spawn as the cave. Each refuses anyone short of its rebirths and
@@ -1021,6 +1036,7 @@ export function buildLayout() {
     portals,
     cave: { position: caveWallPosition },
     boss: { position: BOSS_CENTER, arenaHalf: ARENA_HALF },
+    leaderboards,
     space: { center: [SX, 0, 0], hubHalf: HUB_HALF, north: HUB_N },
     pads,
     crowns,

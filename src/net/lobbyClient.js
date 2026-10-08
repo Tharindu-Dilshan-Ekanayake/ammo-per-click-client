@@ -26,7 +26,7 @@ const RETRY_MS = [1000, 2000, 5000, 10000]
 /**
  * status: 'connecting' | 'online' | 'offline'
  * lobby: { id, name, max } while online
- * players: the *other* players in our lobby, by id: { name, avatar, gun, pet, trainer }
+ * players: the *other* players in our lobby, by id: { name, avatar, gun, pet, trainer, footprints }
  */
 export const useLobby = create(() => ({ status: 'connecting', lobby: null, selfId: null, players: {} }))
 
@@ -40,7 +40,7 @@ export const remoteStates = new Map()
 /** Only used without the matchmaker (local development): one fixed server. */
 const localClient = viaMatchmaker ? null : new Client(LOCAL_SERVER_URL.replace(/^http/, 'ws'))
 let room = null
-let profile = { name: 'Player', avatar: null, gun: null, pet: null, trainer: null }
+let profile = { name: 'Player', avatar: null, gun: null, pet: null, trainer: null, footprints: null }
 let stopped = true
 let retries = 0
 let retryTimer = null
@@ -54,7 +54,14 @@ function profileOf(player, previous) {
   // just because the player switched guns.
   const avatar =
     previous && JSON.stringify(previous.avatar) === JSON.stringify(player.avatar) ? previous.avatar : player.avatar
-  return { name: player.name, avatar, gun: player.gun, pet: player.pet, trainer: player.trainer }
+  return {
+    name: player.name,
+    avatar,
+    gun: player.gun,
+    pet: player.pet,
+    trainer: player.trainer,
+    footprints: player.footprints ?? null,
+  }
 }
 
 function retry() {

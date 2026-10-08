@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 
-import { topUp, useBux } from '../bloxity/bux'
 import { setAimTarget } from '../game/aim'
 import { useBossFight } from '../game/bossFight'
 import { useTouchDevice } from '../game/device'
@@ -20,7 +19,7 @@ import { getTrainer } from '../game/trainers'
 import { ControlsButton, ControlsPanel } from './Controls'
 import { PetsButton, PetsPanel } from './PetsPanel'
 import { RebirthButton, RebirthIcon, RebirthPanel } from './RebirthPanel'
-import { AutoWinsButton, PromoStack, ShopButton, ShopPanel } from './ShopPanel'
+import { PromoStack, ShopButton, ShopPanel } from './ShopPanel'
 import { CHIP, OUTLINE, outlined, SOFT } from './textStyle'
 import { BOSS_SPAWN, cabinEnd, GATE_Z, SPACE_SPAWN, STAGE_COUNT } from '../game/world/themes'
 import { HUD_STRIP_H, reportStripHeight, useStripHeight, useTouchScale } from './touchLayout'
@@ -113,25 +112,6 @@ function ShoeIcon({ className }) {
       <g stroke={INK} strokeWidth="6" strokeLinejoin="round">
         <path d="M10 66 L14 32 Q30 38 40 28 L54 44 Q72 50 88 56 Q95 61 92 70 L12 70 Z" fill="#ff3b4a" />
         <path d="M10 70 H92 V80 H10 Z" fill="#ffffff" />
-      </g>
-    </svg>
-  )
-}
-
-/** Bloxity's Bux gem, in the same chunky outlined style as the trophy. */
-function BuxIcon({ className }) {
-  return (
-    <svg viewBox="0 0 100 100" aria-hidden="true" className={`shrink-0 ${className}`} style={ICON_SHADOW}>
-      <defs>
-        <linearGradient id="hud-bux" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#bdf3ff" />
-          <stop offset="1" stopColor="#0f87ff" />
-        </linearGradient>
-      </defs>
-      <g stroke={INK} strokeWidth="8" strokeLinejoin="round">
-        <path d="M28 10 H72 L94 40 L50 92 L6 40 Z" fill="url(#hud-bux)" />
-        {/* One waistline only: the full facet web closes up at HUD size. */}
-        <path d="M6 40 H94" fill="none" strokeWidth="6" />
       </g>
     </svg>
   )
@@ -373,44 +353,34 @@ function BossBar() {
           {formatNumber(fight.hp)} / {formatNumber(fight.maxHp)}
         </span>
       </div>
-    </div>
-  )
-}
-
-/**
- * Bux balance with a top-up button, under the Wins counter.
- *
- * Hidden entirely until a balance has actually been read (see bloxity/bux.js):
- * signed out there is no balance, and a "0" would read as "you're broke" rather
- * than "log in first".
- */
-function BuxChip() {
-  const balance = useBux((s) => s.balance)
-  const busy = useBux((s) => s.busy)
-  if (balance === null) return null
-  return (
-    <div
-      className="mt-1.5 flex items-center gap-2 rounded-xl border-4 py-1 pl-2 pr-1"
-      style={{
-        borderColor: INK,
-        background: 'linear-gradient(to bottom, #123a5e, #0a1d30)',
-        boxShadow: 'inset 0 -4px 0 rgba(0,0,0,0.3), 0 4px 0 rgba(0,0,0,0.45)',
-      }}
-    >
-      <BuxIcon className="h-8 w-8" />
-      <span key={balance} className="power-bump text-3xl text-sky-200">
-        {formatNumber(balance)}
-      </span>
-      <button
-        type="button"
-        onClick={() => topUp()}
-        disabled={busy}
-        title="Top up Bux"
-        className="pointer-events-auto flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-2 pb-0.5 text-2xl leading-none text-white transition hover:brightness-125 active:translate-y-0.5 disabled:opacity-50"
-        style={{ borderColor: INK, background: 'linear-gradient(to bottom, #3fb6ff, #0f6fd8)' }}
+      <div className={`mt-1 flex items-center justify-between text-white ${touch ? 'text-[10px]' : 'text-sm'}`}>
+        <span>YOU</span>
+        <span>{fight.playerHp} / {fight.maxPlayerHp} HP</span>
+      </div>
+      <div
+        className={`relative mt-0.5 overflow-hidden rounded-full border-2 ${touch ? 'h-3' : 'h-4'}`}
+        style={{ borderColor: INK, background: '#241016' }}
       >
-        +
-      </button>
+        <div
+          className="absolute inset-y-0 left-0 transition-[width] duration-200"
+          style={{
+            width: `${Math.max(0, Math.min(1, fight.playerHp / fight.maxPlayerHp)) * 100}%`,
+            background: 'linear-gradient(to bottom, #8aff78, #26a83c)',
+          }}
+        />
+      </div>
+      {fight.playerHitAt > 0 && now - fight.playerHitAt < 450 && (
+        <div className="boss-hit-flash fixed inset-0 z-20 rounded-none" />
+      )}
+      {/* What is coming, big, in the middle - the one thing worth reading mid-fight. */}
+      {fight.phase === 'fighting' && fight.warningUntil > now && fight.warningText && (
+        <div
+          className={`fixed inset-x-0 top-[38%] z-20 animate-pulse text-center text-red-400 ${touch ? 'text-2xl' : 'text-5xl'}`}
+          style={OUTLINE}
+        >
+          {fight.warningText}
+        </div>
+      )}
     </div>
   )
 }
@@ -454,7 +424,6 @@ function WinsCounter() {
           {pets.length > 0 ? `${pets.length} pets · ` : ''}x{formatBonus(bonus)} Wins
         </span>
       )}
-      <BuxChip />
     </div>
   )
 }
@@ -739,7 +708,6 @@ export function GameHUD({ bodyRef }) {
       <WinsCounter />
       <LeftActionRail />
       <DeveloperNav bodyRef={bodyRef} />
-      <AutoWinsButton />
       <BossBar />
       <PromoStack />
       <PetsPanel />

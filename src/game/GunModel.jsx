@@ -1,8 +1,10 @@
 import { useFrame } from '@react-three/fiber'
 import { useRef } from 'react'
-import { AdditiveBlending, BoxGeometry, CylinderGeometry } from 'three'
+import { AdditiveBlending, BoxGeometry, CylinderGeometry, IcosahedronGeometry, TorusGeometry } from 'three'
 
 import { aim } from './aim'
+import { gunTier } from './guns'
+import { Sparkle } from './world/Effects'
 import { geometry, merge } from './world/geometry'
 import { radialGlowTexture } from './world/textures'
 
@@ -36,7 +38,8 @@ const grip = () => box(0.12, 0.32, 0.16, 0, -0.12, -0.05, 0.28)
  * and up +Y, in units where the whole gun is about three quarters of a metre long.
  *
  * `tip` is how far down +Z the muzzle is, which is where the flash and the tracer
- * start. Thirty guns share six shapes; only the colours and the `size` change.
+ * start. Thirty guns share six shapes; the colours, the `size` and the tier's extras
+ * (see gunExtras) are what change.
  */
 const SHAPES = {
   pistol: {
@@ -160,6 +163,45 @@ function detailsOf(type) {
   })
 }
 
+/** Thin glowing lines down both flanks, in the trim colour. */
+function stripesOf(type) {
+  return geometry(`gun-stripes-${type}`, () => {
+    const layout = DETAIL_LAYOUT[type] ?? DETAIL_LAYOUT.pistol
+    const x = layout.halfWidth + 0.004
+    const len = layout.length * 1.1
+    return merge([
+      box(0.012, 0.022, len, x, layout.sideY + 0.045, layout.z),
+      box(0.012, 0.022, len, -x, layout.sideY + 0.045, layout.z),
+      box(0.012, 0.012, len * 0.7, x, layout.sideY - 0.01, layout.z),
+      box(0.012, 0.012, len * 0.7, -x, layout.sideY - 0.01, layout.z),
+    ])
+  })
+}
+
+/** Where the barrel rings sit on each shape: its height, and a radius that clears it. */
+const RING_FIT = {
+  pistol: { y: 0.1, r: 0.11 },
+  blaster: { y: 0.12, r: 0.12 },
+  rifle: { y: 0.12, r: 0.085 },
+  shotgun: { y: 0.14, r: 0.13 },
+  launcher: { y: 0.2, r: 0.22 },
+  minigun: { y: 0.13, r: 0.16 },
+}
+
+/**
+ * The extras a gun earns as it climbs the ladder (see gunTier). The starter is plain;
+ * the best guns glow, spin and sparkle.
+ *
+ *   core     a pulsing energy gem on top of the gun
+ *   rings    0-2 rings of light spinning round the barrel
+ *   aura     a few sparkles drifting round it
+ */
+const gunExtras = (tier) => ({
+  core: tier >= 6,
+  rings: tier >= 22 ? 2 : tier >= 12 ? 1 : 0,
+  aura: tier >= 18,
+})
+
 /**
  * Blocky gun built from boxes and tubes. The grip is at the origin and the barrel
  * points down +Z, so holders only need to rotate it.
@@ -177,13 +219,34 @@ export function GunModel({ gun, minGlow = 0, flashRef, local = false }) {
   const baseGlow = Math.max(gun.glow ?? 0, minGlow)
   const parts = partsOf(gun)
   const tip = shapeOf(gun).tip
+  const layout = DETAIL_LAYOUT[gun.type] ?? DETAIL_LAYOUT.pistol
+  const fit = RING_FIT[gun.type] ?? RING_FIT.pistol
+  const extras = gunExtras(gunTier(gun))
   const trimMat = useRef(null)
+  const stripeMat = useRef(null)
   const muzzle = useRef(null)
+  const core = useRef(null)
+  const coreGlow = useRef(null)
+  const rings = useRef([])
 
-  useFrame(() => {
-    if (!flashRef) return
-    const boost = flashRef.current || 0
+  const coreGeometry = geometry('gun-core', () => new IcosahedronGeometry(0.05, 0))
+  const ringGeometry = geometry(`gun-ring-${gun.type}`, () => new TorusGeometry(fit.r, 0.012, 6, 28))
+
+  useFrame(({ clock }, delta) => {
+    const t = clock.elapsedTime
+    const boost = flashRef?.current || 0
     if (trimMat.current) trimMat.current.emissiveIntensity = baseGlow + boost * FLASH_BOOST
+    if (stripeMat.current) stripeMat.current.emissiveIntensity = 0.6 + baseGlow + 0.35 * Math.sin(t * 3) + boost * FLASH_BOOST
+    if (core.current) {
+      core.current.rotation.y += delta * 2.2
+      core.current.rotation.x += delta * 1.3
+      const pulse = 1 + 0.18 * Math.sin(t * 5) + boost * 0.5
+      core.current.scale.setScalar(pulse)
+      if (coreGlow.current) coreGlow.current.scale.setScalar(0.32 * pulse)
+    }
+    rings.current.forEach((ring, i) => {
+      if (ring) ring.rotation.z += delta * (i ? -3 : 4) * (1 + boost * 3)
+    })
     const m = muzzle.current
     if (m) {
       // Only the first, brightest part of the shot: a flash that lingers reads as a
@@ -200,10 +263,10 @@ export function GunModel({ gun, minGlow = 0, flashRef, local = false }) {
   return (
     <group scale={gun.size}>
       <mesh geometry={parts.body} castShadow>
-        <meshStandardMaterial color={gun.body} metalness={0.35} roughness={0.45} />
+        <meshPhysicalMaterial color={gun.body} metalness={0.35} roughness={0.4} clearcoat={0.8} clearcoatRoughness={0.18} />
       </mesh>
       <mesh geometry={parts.accent} castShadow>
-        <meshStandardMaterial color={gun.accent} metalness={0.72} roughness={0.28} />
+        <meshStandardMaterial color={gun.accent} metalness={0.78} roughness={0.22} />
       </mesh>
       <mesh geometry={detailsOf(gun.type)} castShadow>
         <meshStandardMaterial color="#252c38" metalness={0.8} roughness={0.3} />
@@ -218,6 +281,35 @@ export function GunModel({ gun, minGlow = 0, flashRef, local = false }) {
           roughness={0.26}
         />
       </mesh>
+      <mesh geometry={stripesOf(gun.type)}>
+        <meshStandardMaterial ref={stripeMat} color={gun.trim} emissive={gun.trim} emissiveIntensity={0.6 + baseGlow} toneMapped={false} />
+      </mesh>
+
+      {extras.core && (
+        <group position={[0, layout.top + 0.09, layout.z]}>
+          <mesh ref={core} geometry={coreGeometry}>
+            <meshStandardMaterial color={gun.accent} emissive={gun.trim} emissiveIntensity={1.4} metalness={0.3} roughness={0.15} toneMapped={false} />
+          </mesh>
+          <sprite ref={coreGlow} scale={0.32}>
+            <spriteMaterial map={radialGlowTexture()} color={gun.trim} transparent opacity={0.8} blending={AdditiveBlending} depthWrite={false} toneMapped={false} />
+          </sprite>
+        </group>
+      )}
+      {Array.from({ length: extras.rings }, (_, i) => (
+        <mesh
+          key={i}
+          geometry={ringGeometry}
+          position={[0, fit.y, tip - 0.1 - i * 0.12]}
+          scale={1 + i * 0.15}
+          ref={(el) => {
+            rings.current[i] = el
+          }}
+        >
+          <meshBasicMaterial color={i ? gun.accent : gun.trim} toneMapped={false} />
+        </mesh>
+      ))}
+      {extras.aura && <Sparkle count={8} scale={[0.6, 0.5, 1]} position={[0, 0.15, tip / 2]} size={2.5} speed={0.6} color={gun.trim} />}
+
       {local && (
         <object3D
           position={[0, 0.12, tip]}

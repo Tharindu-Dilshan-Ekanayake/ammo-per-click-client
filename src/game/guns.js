@@ -50,8 +50,8 @@ export const GUNS = [
 
   // --- Bux guns. Priced to leapfrog a long grind, not to end the game: Phantom
   // lands between Plasma and Thunder, Celestial between Solar and Void.
-  { id: 'phantom', name: 'Phantom Blaster', type: 'blaster', bux: 99, sku: 'gun_phantom_blaster', ammo: 25000, body: '#1d1030', accent: '#a45cff', trim: '#f0dcff', size: 1.48, glow: 0.95, laser: true },
-  { id: 'celestial', name: 'Celestial Minigun', type: 'minigun', bux: 249, sku: 'gun_celestial_minigun', ammo: 700000, body: '#fff3cf', accent: '#7ff9ff', trim: '#ffd76a', size: 1.64, glow: 1 },
+  { id: 'phantom', name: 'Phantom Blaster', type: 'blaster', bux: 199, sku: 'gun_phantom_blaster', ammo: 25000, body: '#1d1030', accent: '#a45cff', trim: '#f0dcff', size: 1.48, glow: 0.95, laser: true },
+  { id: 'celestial', name: 'Celestial Minigun', type: 'minigun', bux: 349, sku: 'gun_celestial_minigun', ammo: 700000, body: '#fff3cf', accent: '#7ff9ff', trim: '#ffd76a', size: 1.64, glow: 1 },
 
   // --- Space World. Past the top of the lobby's ladder; only sold over there.
   { id: 'meteor', name: 'Meteor Rifle', type: 'rifle', world: 2, cost: 10000000000, ammo: 1200000000, body: '#3a2a20', accent: '#ff8a3a', trim: '#ffd27a', size: 1.94, glow: 1 },
@@ -71,6 +71,18 @@ export const DEFAULT_GUN = GUNS[0].id
 
 /** The colour a gun glows in the shop. */
 export const glowColor = (gun) => gun.trim
+
+/** Every gun from weakest to strongest, by Ammo per click. */
+const BY_POWER = [...GUNS].sort((a, b) => a.ammo - b.ammo)
+/** The highest tier there is: the strongest gun's. */
+export const MAX_GUN_TIER = GUNS.length - 1
+
+/**
+ * How far up the ladder a gun is, 0 for the starter to MAX_GUN_TIER for the best.
+ * The fancier extras on the model (see GunModel) and its footprints (footprintSets.js)
+ * switch on as this climbs.
+ */
+export const gunTier = (gun) => BY_POWER.indexOf(gun)
 
 /** Looks a gun up by id, falling back to the starter (e.g. for an old save). */
 export const getGun = (id) => GUNS.find((g) => g.id === id) ?? GUNS[0]

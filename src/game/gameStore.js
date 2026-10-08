@@ -5,8 +5,9 @@ import { isSignedIn, purchase, showLogin } from '../bloxity/bux'
 import { bossReward } from './boss'
 import { getEgg } from './eggs'
 import { formatBonus, formatNumber } from './format'
+import { footprintCost } from './footprintSets'
 import { DEFAULT_GUN, getGun } from './guns'
-import { AMMO_PACKS, getPass, passMultiplier } from './passes'
+import { getPass, passMultiplier } from './passes'
 import { getPet, MAX_EQUIPPED, PETS, petWinsMultiplier } from './pets'
 import {
   activeBoost,
@@ -103,6 +104,10 @@ export const DEFAULT_PROGRESS = Object.freeze({
   ownedPasses: [],
   /** Whether Auto Wins is switched on (it only runs once the pass is owned). */
   autoWins: false,
+  /** Ids of the guns whose footprints have been bought in the shop (see footprintSets.js). */
+  ownedFootprints: [],
+  /** The footprints being left, by gun id, or null for none. */
+  footprints: null,
 })
 
 /** The keys of DEFAULT_PROGRESS, which is the list of what gets saved. */
@@ -460,6 +465,35 @@ export const useGame = create(
         playSound('unlock')
       },
 
+      /**
+       * A footprint set's button in the shop: buy it if it isn't owned (you need the
+       * gun first), wear it if it is, take it off if it's already on.
+       */
+      pickFootprints: (id) => {
+        const { owned, ownedFootprints, footprints, wins, notify } = get()
+        const gun = getGun(id)
+        if (gun.id !== id) return
+        if (ownedFootprints.includes(id)) {
+          const on = footprints !== id
+          set({ footprints: on ? id : null })
+          notify(on ? `Now leaving ${gun.name} footprints` : 'Footprints off')
+          playSound(on ? 'equip' : 'click')
+          return
+        }
+        if (!owned.includes(id)) {
+          notify(`Get the ${gun.name} first to unlock its footprints`, 'error')
+          return
+        }
+        const cost = footprintCost(gun)
+        if (wins < cost) {
+          notify(`Need ${formatNumber(cost - wins)} more Wins for the ${gun.name} footprints`, 'error')
+          return
+        }
+        set({ wins: wins - cost, ownedFootprints: [...ownedFootprints, id], footprints: id })
+        notify(`Bought the ${gun.name} footprints!`, 'success')
+        playSound('unlock')
+      },
+
       /** Came within range of a stage wall (`z`: the z of its centre). */
       setNearWall: (number, z) => set({ nearWall: { number, z } }),
       /** Left its range; ignored if another wall has taken over since. */
@@ -589,13 +623,6 @@ export const useGame = create(
         }))
       },
 
-      /** Buys one of the Ammo packs and drops it straight onto the counter. */
-      buyAmmoPack: (id) => {
-        const pack = AMMO_PACKS.find((p) => p.id === id)
-        if (!pack) return Promise.resolve(false)
-        return get().buyWithBux(pack, () => ({ ammo: get().ammo + pack.amount }), `+${pack.name}!`)
-      },
-
       /** Switches Auto Wins on or off; offers the pass if it isn't owned yet. */
       toggleAutoWins: () => {
         const { ownedPasses, autoWins } = get()
@@ -619,8 +646,8 @@ export const useGame = create(
       },
 
       /**
-       * The shared front half of every Bux purchase: the passes, the Ammo packs, the
-       * two Bux guns, the Exclusive egg and the two VIP targets all come through here.
+       * The shared front half of every Bux purchase: the passes, the two Bux guns,
+       * the Exclusive egg and the two VIP targets all come through here.
        *
        * The SDK owns the whole payment - it prices the SKU server-side, draws the
        * confirm modal and takes the Bux - so all this does is check somebody is
@@ -634,10 +661,9 @@ export const useGame = create(
        *
        * @param {{ sku: string, name: string, id: string }} item
        * @param {() => object} grant returns the state patch that hands the item over
-       * @param {string} [done] the toast on success; "<name> unlocked!" by default
        * @returns {Promise<boolean>} whether the player now has it
        */
-      buyWithBux: async (item, grant, done) => {
+      buyWithBux: async (item, grant) => {
         const { purchasing, notify } = get()
         if (!item?.sku) return false
         if (purchasing) return false
@@ -661,7 +687,7 @@ export const useGame = create(
           // grant() re-reads the store on purpose: the await above spans a modal,
           // so anything captured before it is stale by now.
           set(grant())
-          notify(done ?? `${item.name} unlocked!`, 'success')
+          notify(`${item.name} unlocked!`, 'success')
           playSound('unlock')
           return true
         } finally {

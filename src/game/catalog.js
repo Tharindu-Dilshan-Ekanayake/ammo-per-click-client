@@ -1,6 +1,6 @@
 import { EGGS } from './eggs'
 import { GUNS } from './guns'
-import { AMMO_PACKS, PASSES } from './passes'
+import { PASSES } from './passes'
 import { TRAINERS } from './trainers'
 
 /**
@@ -17,7 +17,6 @@ export const BUX_ITEMS = [
   ...TRAINERS.filter((t) => t.bux).map((t) => ({ kind: 'trainer', id: t.id, sku: t.sku, name: t.name, bux: t.bux })),
   ...EGGS.filter((e) => e.bux).map((e) => ({ kind: 'pet', id: e.id, sku: e.sku, name: e.name, bux: e.bux })),
   ...PASSES.map((p) => ({ kind: 'pass', id: p.id, sku: p.sku, name: p.name, bux: p.bux })),
-  ...AMMO_PACKS.map((p) => ({ kind: 'ammo', id: p.id, sku: p.sku, name: p.name, bux: p.bux, amount: p.amount })),
 ]
 
 export const ALL_SKUS = BUX_ITEMS.map((item) => item.sku)

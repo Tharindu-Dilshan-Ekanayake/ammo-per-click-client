@@ -8,6 +8,7 @@ import FollowCamera from './FollowCamera'
 import { useLoading } from './loadingStore'
 import NetSync from './NetSync'
 import PetCompanion from './PetCompanion'
+import Footprints from './Footprints'
 import Player from './Player'
 import RemotePlayers from './RemotePlayers'
 import { qualityOf, useSettings } from './settings'
@@ -194,6 +195,7 @@ export function GameScene({ bodyRef: externalBodyRef }) {
             position={START}
             onAvatarReady={handleAvatarReady}
           />
+          <Footprints />
           <PetCompanion bodyRef={playerBodyRef} anchorRef={playerAnchorRef} />
           {/* The other players in our lobby, and sending ours (after each physics step). */}
           <RemotePlayers />
