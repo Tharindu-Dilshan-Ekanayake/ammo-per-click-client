@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 
-import { useTouchDevice } from '../game/device'
+import { useCompactLayout, useTouchDevice } from '../game/device'
 import { useGame } from '../game/gameStore'
 import { CHIP, OUTLINE } from './textStyle'
 
@@ -34,7 +34,7 @@ const INK = '#1b1b25'
  * every other panel in this game closes: the ✕, a click outside, or Escape.
  */
 function ControlsDialog() {
-  const touch = useTouchDevice()
+  const compact = useCompactLayout()
   const close = () => useGame.getState().toggleControlsPanel(false)
 
   useEffect(() => {
@@ -51,7 +51,7 @@ function ControlsDialog() {
       onClick={close}
     >
       <div
-        className={`w-full rounded-2xl border-4 ${touch ? 'max-w-xs p-3' : 'max-w-sm p-4'}`}
+        className={`w-full rounded-2xl border-4 ${compact ? 'max-w-xs p-3' : 'max-w-sm p-4'}`}
         onClick={(e) => e.stopPropagation()}
         style={{
           borderColor: INK,
@@ -59,15 +59,15 @@ function ControlsDialog() {
           boxShadow: '0 10px 0 rgba(0,0,0,0.45)',
         }}
       >
-        <div className={`flex items-center justify-between ${touch ? 'mb-2' : 'mb-3'}`}>
-          <span className={`text-white ${touch ? 'text-xl' : 'text-3xl'}`} style={OUTLINE}>
+        <div className={`flex items-center justify-between ${compact ? 'mb-2' : 'mb-3'}`}>
+          <span className={`text-white ${compact ? 'text-xl' : 'text-3xl'}`} style={OUTLINE}>
             Controls
           </span>
           <button
             type="button"
             onClick={close}
             className={`pointer-events-auto relative cursor-pointer rounded-lg border-4 text-white transition duration-100 hover:brightness-110 active:translate-y-0.5 ${
-              touch ? 'px-2 py-0.5 text-base' : 'px-3 py-1 text-xl'
+              compact ? 'px-2 py-0.5 text-base' : 'px-3 py-1 text-xl'
             }`}
             style={{
               ...OUTLINE,
@@ -80,18 +80,18 @@ function ControlsDialog() {
           </button>
         </div>
 
-        <div className={`flex flex-col ${touch ? 'gap-1' : 'gap-1.5'}`}>
+        <div className={`flex flex-col ${compact ? 'gap-1' : 'gap-1.5'}`}>
           {ROWS.map(([key, action]) => (
             <div key={key} className="flex items-center gap-2">
               <span
                 className={`rounded border-2 bg-black/35 text-center font-semibold text-white ${
-                  touch ? 'min-w-16 px-1 py-0.5 text-xs' : 'min-w-24 px-1.5 py-0.5 text-sm'
+                  compact ? 'min-w-16 px-1 py-0.5 text-xs' : 'min-w-24 px-1.5 py-0.5 text-sm'
                 }`}
                 style={{ borderColor: 'rgba(255,255,255,0.25)' }}
               >
                 {key}
               </span>
-              <span className={`text-white/85 ${touch ? 'text-xs' : 'text-sm'}`}>{action}</span>
+              <span className={`text-white/85 ${compact ? 'text-xs' : 'text-sm'}`}>{action}</span>
             </div>
           ))}
         </div>
@@ -117,14 +117,18 @@ const EMOJI = { filter: 'drop-shadow(0 2px 0 rgba(0,0,0,0.55)) drop-shadow(0 0 6
  * already draws the on-screen stick and buttons in their place.
  */
 export function ControlsButton() {
+  // The keyboard list is for people with a keyboard, however small their window.
   const touch = useTouchDevice()
+  const compact = useCompactLayout()
   if (touch) return null
 
   return (
     <button
       type="button"
       onClick={() => useGame.getState().toggleControlsPanel()}
-      className="pointer-events-auto relative flex h-[4.5rem] w-[4.5rem] cursor-pointer flex-col items-center justify-center rounded-xl border-4 transition duration-100 hover:-translate-y-0.5 hover:scale-[1.03] hover:brightness-110 active:translate-y-0.5 active:scale-[0.98]"
+      className={`pointer-events-auto relative flex cursor-pointer flex-col items-center justify-center rounded-xl transition duration-100 hover:-translate-y-0.5 hover:scale-[1.03] hover:brightness-110 active:translate-y-0.5 active:scale-[0.98] ${
+        compact ? 'h-12 w-12 border-2' : 'h-[4.5rem] w-[4.5rem] border-4'
+      }`}
       style={{
         borderColor: INK,
         background: 'linear-gradient(to bottom, #6fb8ff, #2f7ad6)',
@@ -133,10 +137,10 @@ export function ControlsButton() {
     >
       <span className="pointer-events-none absolute inset-x-2 top-1 h-1.5 rounded-full bg-white/35" />
       <span className="pointer-events-none absolute -left-2 -top-2 z-20 flex h-5 min-w-5 items-center justify-center rounded-md border-2 px-1 text-[11px] text-white" style={{ ...CHIP, borderColor: INK, background: '#2879f0' }}>C</span>
-      <span className="text-4xl" style={EMOJI} aria-hidden>
+      <span className={compact ? 'text-2xl' : 'text-4xl'} style={EMOJI} aria-hidden>
         ⌨️
       </span>
-      <span className="text-[11px] leading-none text-white" style={CHIP}>
+      <span className={`leading-none text-white ${compact ? 'text-[9px]' : 'text-[11px]'}`} style={CHIP}>
         Controls
       </span>
     </button>

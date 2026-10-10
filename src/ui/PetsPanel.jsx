@@ -2,7 +2,7 @@ import { PerspectiveCamera, View } from '@react-three/drei'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { useEffect, useRef } from 'react'
 
-import { useTouchDevice } from '../game/device'
+import { useCompactLayout } from '../game/device'
 import { getEgg } from '../game/eggs'
 import { formatBonus, formatNumber } from '../game/format'
 import { useGame } from '../game/gameStore'
@@ -441,14 +441,14 @@ export function PetsPanel() {
  */
 export function PetsButton() {
   // Half size on a phone, so the left rail stops before the thumbstick starts.
-  const touch = useTouchDevice()
+  const compact = useCompactLayout()
   const equipped = useGame((s) => s.equippedPets.length)
   return (
     <button
       type="button"
       onClick={() => useGame.getState().togglePetsPanel()}
       className={`pointer-events-auto relative mt-0 flex cursor-pointer flex-col items-center justify-center rounded-xl transition duration-100 hover:-translate-y-0.5 hover:scale-[1.03] hover:brightness-110 active:translate-y-0.5 active:scale-[0.98] ${
-        touch ? 'h-12 w-12 border-2' : 'h-[4.5rem] w-[4.5rem] border-4'
+        compact ? 'h-12 w-12 border-2' : 'h-[4.5rem] w-[4.5rem] border-4'
       }`}
       style={{
         borderColor: INK,
@@ -460,10 +460,10 @@ export function PetsButton() {
       <span className="pointer-events-none absolute -left-2 -top-2 z-20 flex h-5 min-w-5 items-center justify-center rounded-md border-2 px-1 text-[11px] text-white" style={{ ...CHIP, borderColor: INK, background: '#2879f0' }}>P</span>
       {/* The dog, matching the reference art. The drawn paw it replaced is still
           used inside the panel, where it is small and wants a flat silhouette. */}
-      <span className={touch ? 'text-2xl' : 'text-4xl'} style={EMOJI} aria-hidden>
+      <span className={compact ? 'text-2xl' : 'text-4xl'} style={EMOJI} aria-hidden>
         🐶
       </span>
-      <span className={`text-white ${touch ? 'text-[11px]' : 'text-sm'}`} style={CHIP}>
+      <span className={`text-white ${compact ? 'text-[11px]' : 'text-sm'}`} style={CHIP}>
         Pets
       </span>
       {equipped > 0 && (

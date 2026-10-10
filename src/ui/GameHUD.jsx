@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 
 import { useBossFight } from '../game/bossFight'
-import { useTouchDevice } from '../game/device'
+import { isTouchDevice, useCompactLayout } from '../game/device'
 import { formatBonus, formatNumber } from '../game/format'
 import { AUTO_WINS_S, powerMultiplier, useGame, winsMultiplier } from '../game/gameStore'
 import {
@@ -19,7 +19,7 @@ import { ControlsButton, ControlsPanel } from './Controls'
 import { PetsButton, PetsPanel } from './PetsPanel'
 import { RebirthButton, RebirthIcon, RebirthPanel } from './RebirthPanel'
 import { PromoStack, ShopButton, ShopPanel } from './ShopPanel'
-import { CHIP, OUTLINE, outlined, SOFT } from './textStyle'
+import { OUTLINE, outlined, SOFT } from './textStyle'
 import { HUD_STRIP_H, reportStripHeight, useTouchScale } from './touchLayout'
 
 const ICON_SHADOW = { filter: 'drop-shadow(0 3px 0 rgba(0,0,0,0.85))' }
@@ -200,9 +200,9 @@ function GameButton({ colors, onClick, className = '', style, children }) {
  * is most of a second button's worth of furniture on top of the first.
  */
 function PriceTag({ cost }) {
-  const touch = useTouchDevice()
+  const compact = useCompactLayout()
   const scale = useTouchScale()
-  if (!touch) {
+  if (!compact) {
     return (
       <span className="absolute -right-2 -top-4 flex items-center gap-0.5 text-lg text-white" style={OUTLINE}>
         <TrophyIcon className="h-6 w-6" />
@@ -263,12 +263,12 @@ function Notice({ message }) {
  */
 function ClickPopups() {
   const popups = useGame((s) => s.popups)
-  const touch = useTouchDevice()
+  const compact = useCompactLayout()
   return popups.map((p) => (
     <div
       key={p.id}
       className={`click-popup pointer-events-none z-20 flex items-center gap-1 whitespace-nowrap text-yellow-300 ${
-        touch ? 'text-xl' : 'text-4xl'
+        compact ? 'text-xl' : 'text-4xl'
       }`}
       style={{
         ...OUTLINE,
@@ -279,7 +279,7 @@ function ClickPopups() {
         '--rot': `${((p.id % 5) - 2) * 9}deg`,
       }}
     >
-      <AmmoIcon className={touch ? 'h-6 w-6' : 'h-11 w-11'} />
+      <AmmoIcon className={compact ? 'h-6 w-6' : 'h-11 w-11'} />
       <span>+{formatNumber(p.gain)}</span>
     </div>
   ))
@@ -311,7 +311,7 @@ const clock = (s) => `${Math.floor(s / 60)}:${String(Math.max(0, Math.floor(s % 
 function BossBar() {
   const inArena = useGame((s) => s.inBossArena)
   const fight = useBossFight()
-  const touch = useTouchDevice()
+  const compact = useCompactLayout()
   const [now, setNow] = useState(() => performance.now())
   useEffect(() => {
     if (!inArena) return undefined
@@ -328,17 +328,17 @@ function BossBar() {
         : 'Shoot it to start the clock!'
   return (
     <div
-      className={`pointer-events-none absolute left-1/2 z-10 -translate-x-1/2 ${touch ? 'top-12 w-72' : 'top-16 w-[30rem]'}`}
+      className={`pointer-events-none absolute left-1/2 z-10 -translate-x-1/2 ${compact ? 'top-12 w-72' : 'top-16 w-[30rem]'}`}
       style={OUTLINE}
     >
-      <div className={`flex items-baseline justify-between text-white ${touch ? 'text-sm' : 'text-2xl'}`}>
+      <div className={`flex items-baseline justify-between text-white ${compact ? 'text-sm' : 'text-2xl'}`}>
         <span>Boss Lv {fight.level}</span>
         <span className={fight.phase === 'fighting' && fight.endsAt - now < 10000 ? 'text-red-400' : 'text-yellow-200'}>
           {status}
         </span>
       </div>
       <div
-        className={`relative mt-1 overflow-hidden rounded-xl border-4 ${touch ? 'h-6' : 'h-9'}`}
+        className={`relative mt-1 overflow-hidden rounded-xl border-4 ${compact ? 'h-6' : 'h-9'}`}
         style={{ borderColor: INK, background: '#3a1010' }}
       >
         <div
@@ -346,17 +346,17 @@ function BossBar() {
           style={{ width: `${fraction * 100}%`, background: 'linear-gradient(to bottom, #ff8a6a, #d62a1a)' }}
         />
         <span
-          className={`absolute inset-0 flex items-center justify-center text-white ${touch ? 'text-xs' : 'text-lg'}`}
+          className={`absolute inset-0 flex items-center justify-center text-white ${compact ? 'text-xs' : 'text-lg'}`}
         >
           {formatNumber(fight.hp)} / {formatNumber(fight.maxHp)}
         </span>
       </div>
-      <div className={`mt-1 flex items-center justify-between text-white ${touch ? 'text-[10px]' : 'text-sm'}`}>
+      <div className={`mt-1 flex items-center justify-between text-white ${compact ? 'text-[10px]' : 'text-sm'}`}>
         <span>YOU</span>
         <span>{fight.playerHp} / {fight.maxPlayerHp} HP</span>
       </div>
       <div
-        className={`relative mt-0.5 overflow-hidden rounded-full border-2 ${touch ? 'h-3' : 'h-4'}`}
+        className={`relative mt-0.5 overflow-hidden rounded-full border-2 ${compact ? 'h-3' : 'h-4'}`}
         style={{ borderColor: INK, background: '#241016' }}
       >
         <div
@@ -373,7 +373,7 @@ function BossBar() {
       {/* What is coming, big, in the middle - the one thing worth reading mid-fight. */}
       {fight.phase === 'fighting' && fight.warningUntil > now && fight.warningText && (
         <div
-          className={`fixed inset-x-0 top-[38%] z-20 animate-pulse text-center text-red-400 ${touch ? 'text-2xl' : 'text-5xl'}`}
+          className={`fixed inset-x-0 top-[38%] z-20 animate-pulse text-center text-red-400 ${compact ? 'text-2xl' : 'text-5xl'}`}
           style={OUTLINE}
         >
           {fight.warningText}
@@ -388,7 +388,7 @@ function BossBar() {
  * multiplier under it whenever one is out (see petWinsMultiplier).
  */
 function WinsCounter() {
-  const touch = useTouchDevice()
+  const compact = useCompactLayout()
   const wins = useGame((s) => s.wins)
   const rebirths = useGame((s) => s.rebirths)
   const pets = useGame((s) => s.equippedPets)
@@ -397,24 +397,24 @@ function WinsCounter() {
   return (
     <div
       className={`pointer-events-none absolute z-10 flex flex-col items-start ${
-        touch ? 'left-2 top-14' : 'left-4 top-20'
+        compact ? 'left-2 top-12' : 'left-4 top-20'
       }`}
       style={OUTLINE}
     >
-      <div className={`flex items-center ${touch ? 'gap-1' : 'gap-2'}`}>
-        <TrophyIcon className={touch ? 'h-7 w-7' : 'h-12 w-12'} />
-        <span key={wins} className={`power-bump text-white ${touch ? 'text-2xl' : 'text-5xl'}`}>
+      <div className={`flex items-center ${compact ? 'gap-1' : 'gap-2'}`}>
+        <TrophyIcon className={compact ? 'h-7 w-7' : 'h-12 w-12'} />
+        <span key={wins} className={`power-bump text-white ${compact ? 'text-2xl' : 'text-5xl'}`}>
           {formatNumber(wins)}
         </span>
       </div>
-      <div className={`ml-1 flex items-center gap-1 text-white ${touch ? 'text-sm' : 'text-lg'}`}>
-        <RebirthIcon className={`flex-none ${touch ? 'h-7 w-7' : 'h-8 w-8'}`} />
+      <div className={`ml-1 flex items-center gap-1 text-white ${compact ? 'text-sm' : 'text-lg'}`}>
+        <RebirthIcon className={`flex-none ${compact ? 'h-7 w-7' : 'h-8 w-8'}`} />
         <span key={rebirths} className="power-bump">
           {formatNumber(rebirths)} Rebirths
         </span>
       </div>
       {bonus > 1 && (
-        <span className={`ml-1 text-lime-300 ${touch ? 'text-sm' : 'text-2xl'}`}>
+        <span className={`ml-1 text-lime-300 ${compact ? 'text-sm' : 'text-2xl'}`}>
           {pets.length > 0 ? `${pets.length} pets · ` : ''}x{formatBonus(bonus)} Wins
         </span>
       )}
@@ -422,13 +422,20 @@ function WinsCounter() {
   )
 }
 
-/** Vertically stacked action buttons centred along the left edge. */
+/**
+ * The action buttons down the left edge. Full size they are one column, centred on
+ * the screen's height. In a small window a column of four does not fit between the
+ * Wins counter and the bottom panel, so they become a 2x2 block hung under the
+ * counter - where nothing else is.
+ */
 function LeftActionRail() {
-  const touch = useTouchDevice()
+  const compact = useCompactLayout()
   return (
     <div
-      className={`pointer-events-none absolute z-10 flex -translate-y-1/2 flex-col items-center ${
-        touch ? 'left-2 top-1/2 gap-1' : 'left-4 top-1/2 gap-2'
+      className={`pointer-events-none absolute z-10 ${
+        compact
+          ? 'left-2 top-[8.5rem] grid grid-cols-2 gap-x-2.5 gap-y-1.5 [&>button]:mt-0'
+          : 'left-4 top-1/2 flex -translate-y-1/2 flex-col items-center gap-2'
       }`}
     >
       <PetsButton />
@@ -457,12 +464,11 @@ function LeftActionRail() {
  * row scrolls sideways instead - which is the honest answer, and the one where every
  * boost is still reachable.
  */
-const BUTTON_H = (scale) => Math.max(34, Math.round(36 * scale))
-const BOOST_W = (scale) => Math.max(64, Math.round(70 * scale))
+const BUTTON_H = (scale) => Math.max(32, Math.round(34 * scale))
 const ICON_PX = (scale) => Math.max(16, Math.round(18 * scale))
 
 function LevelBar({ ammo }) {
-  const touch = useTouchDevice()
+  const compact = useCompactLayout()
   const scale = useTouchScale()
   const level = levelFor(ammo)
   const max = level >= MAX_LEVEL
@@ -471,23 +477,29 @@ function LevelBar({ ammo }) {
   const fraction = max ? 1 : Math.min(1, (ammo - from) / (to - from))
   return (
     <div
-      className={`relative w-full overflow-hidden rounded-xl ${touch ? 'border-2' : 'h-16 border-4'}`}
+      className={`relative w-full overflow-hidden ${compact ? 'rounded-lg border-[3px]' : 'h-16 rounded-xl border-4'}`}
       style={{
         borderColor: INK,
-        background: '#5a3208',
-        boxShadow: '0 4px 0 rgba(0,0,0,0.45)',
-        // Floored: below about thirty pixels the text inside stops fitting.
-      ...(touch ? { height: Math.max(28, Math.round(30 * scale)) } : null),
+        background: 'linear-gradient(to bottom, #4a2806, #6a3c0c)',
+        boxShadow: compact
+          ? 'inset 0 2px 3px rgba(0,0,0,0.45), 0 3px 0 rgba(0,0,0,0.45)'
+          : 'inset 0 3px 4px rgba(0,0,0,0.4), 0 4px 0 rgba(0,0,0,0.45)',
+        // Floored: below about twenty-six pixels the text inside stops fitting.
+        ...(compact ? { height: Math.max(26, Math.round(28 * scale)) } : null),
       }}
     >
       <div
         className="absolute inset-y-0 left-0 transition-[width] duration-300"
         style={{ width: `${fraction * 100}%`, background: 'linear-gradient(to bottom, #6fe8ff, #2fb6ff 60%, #1a8fe0)' }}
       />
-      <div className="absolute inset-x-3 top-1.5 h-2 rounded-full bg-white/30" />
+      <div
+        className={`absolute rounded-full bg-white/30 ${
+          compact ? 'inset-x-2 top-0.5 h-1' : 'inset-x-3 top-1.5 h-2'
+        }`}
+      />
       <div
         className={`relative flex h-full items-center justify-between text-white ${
-          touch ? 'gap-2 px-2 text-xs' : 'gap-3 px-5 text-3xl'
+          compact ? 'gap-2 px-2.5 text-[13px]' : 'gap-3 px-5 text-3xl'
         }`}
         style={OUTLINE}
       >
@@ -495,7 +507,7 @@ function LevelBar({ ammo }) {
         {max ? (
           <span>MAX</span>
         ) : (
-          <span className={touch ? 'text-xs' : 'text-2xl'}>{`${formatNumber(ammo)} / ${formatNumber(to)}`}</span>
+          <span className={compact ? 'text-[11px] text-white/90' : 'text-2xl'}>{`${formatNumber(ammo)} / ${formatNumber(to)}`}</span>
         )}
       </div>
     </div>
@@ -503,7 +515,7 @@ function LevelBar({ ammo }) {
 }
 
 function BoostButton({ def, now }) {
-  const touch = useTouchDevice()
+  const compact = useCompactLayout()
   const scale = useTouchScale()
   const boost = useGame((s) => s.boost)
   const running = activeBoost(boost, now)?.multiplier === def.multiplier
@@ -512,16 +524,16 @@ function BoostButton({ def, now }) {
     <GameButton
       colors={BOOST_COLORS[def.multiplier]}
       onClick={() => useGame.getState().buyBoost(def.multiplier)}
-      className={`${touch ? 'shrink-0' : 'h-16 flex-1'} ${running ? 'ring-4 ring-lime-300' : ''}`}
-      style={touch ? { width: BOOST_W(scale), height: BUTTON_H(scale), borderWidth: 2 } : undefined}
+      className={`${compact ? 'min-w-0 flex-1' : 'h-16 flex-1'} ${running ? 'ring-4 ring-lime-300' : ''}`}
+      style={compact ? { height: BUTTON_H(scale), borderWidth: 2 } : undefined}
     >
       <span
-        className={`flex items-center justify-center text-white ${touch ? 'gap-0.5' : 'gap-2 text-3xl'}`}
-        style={touch ? { ...OUTLINE, fontSize: Math.max(13, Math.round(16 * scale)) } : OUTLINE}
+        className={`flex items-center justify-center text-white ${compact ? 'gap-0.5' : 'gap-2 text-3xl'}`}
+        style={compact ? { ...OUTLINE, fontSize: Math.max(13, Math.round(16 * scale)) } : OUTLINE}
       >
         <AmmoIcon
-          className={touch ? '' : 'h-10 w-10'}
-          style={touch ? { width: ICON_PX(scale), height: ICON_PX(scale) } : undefined}
+          className={compact ? '' : 'h-10 w-10'}
+          style={compact ? { width: ICON_PX(scale), height: ICON_PX(scale) } : undefined}
         />
         x{def.multiplier}
       </span>
@@ -544,7 +556,7 @@ function BoostButton({ def, now }) {
  * bar, and the bottom panel with Ammo, the level bar and boosts. Also handles E.
  */
 export function GameHUD() {
-  const touch = useTouchDevice()
+  const compact = useCompactLayout()
   // The panel shrinks with the controls, so the two keep their proportions and the
   // game keeps the middle of the screen (see ui/touchLayout.js).
   const scale = useTouchScale()
@@ -552,12 +564,12 @@ export function GameHUD() {
   const strip = useRef(null)
   useEffect(() => {
     const el = strip.current
-    if (!touch || !el) return
+    if (!compact || !el) return
     const observer = new ResizeObserver(([entry]) => reportStripHeight(entry.contentRect.height))
     observer.observe(el)
     reportStripHeight(el.getBoundingClientRect().height)
     return () => observer.disconnect()
-  }, [touch])
+  }, [compact])
   const ammo = useGame((s) => s.ammo)
   const rebirths = useGame((s) => s.rebirths)
   const boost = useGame((s) => s.boost)
@@ -640,10 +652,10 @@ export function GameHUD() {
       <div
         ref={strip}
         className={`pointer-events-none absolute inset-x-0 z-10 flex flex-col px-2 ${
-          touch ? 'bottom-0 items-stretch gap-1 pb-1' : 'bottom-4 items-center gap-1 px-4'
+          compact ? 'bottom-0 items-center gap-1 pb-1.5' : 'bottom-4 items-center gap-1 px-4'
         }`}
         style={
-          touch
+          compact
             ? {
                 paddingBottom: 'var(--safe-bottom)',
                 // The controls are positioned on the promise that this is how tall
@@ -663,40 +675,40 @@ export function GameHUD() {
             type="button"
             onClick={() => useGame.getState().toggleRebirthPanel(true)}
             className={`pointer-events-auto cursor-pointer text-red-500 transition hover:brightness-125 active:translate-y-0.5 ${
-              touch ? 'text-center text-sm' : 'text-4xl'
+              compact ? 'text-center text-sm' : 'text-4xl'
             }`}
             style={OUTLINE}
           >
             Rebirth needed to level up!{' '}
-            <span className={`text-yellow-300 ${touch ? 'text-xs' : 'text-2xl'}`}>
+            <span className={`text-yellow-300 ${compact ? 'text-xs' : 'text-2xl'}`}>
               (x{rebirthMultiplier(rebirths + 1)} Power)
             </span>
           </button>
         ) : (
           ammo === 0 && (
             <div
-              className={`animate-pulse text-white ${touch ? 'text-center text-xs' : 'text-2xl'}`}
+              className={`animate-pulse text-white ${compact ? 'text-center text-xs' : 'text-2xl'}`}
               style={OUTLINE}
             >
-              {touch ? 'Tap 🔫 to shoot!' : 'Click to shoot your gun!'}
+              {isTouchDevice() ? 'Tap 🔫 to shoot!' : 'Click to shoot your gun!'}
             </div>
           )
         )}
 
-        {touch ? (
-          <>
+        {compact ? (
+          <div className="flex w-full max-w-[30rem] flex-col gap-1">
             <div className="flex w-full items-center justify-between gap-2 text-white" style={OUTLINE}>
               {/* Click popups fly to this element; the value bounces as it changes. */}
-              <span data-ammo-counter className="flex items-center gap-1 whitespace-nowrap text-sm">
-                <AmmoIcon className="h-4 w-4" />
+              <span data-ammo-counter className="flex items-center gap-1 whitespace-nowrap text-lg">
+                <AmmoIcon className="h-5 w-5" />
                 <span key={ammo} className="power-bump">
                   {formatNumber(ammo)}
                 </span>{' '}
                 Ammo
               </span>
-              <span className="flex flex-col items-end text-[9px] leading-tight text-sky-300">
+              <span className="flex flex-col items-end text-[10px] leading-tight text-sky-300">
                 <span className="flex items-center gap-0.5">
-                  <ShoeIcon className="h-2.5 w-2.5" />
+                  <ShoeIcon className="h-3 w-3" />
                   Speed: {WALK_SPEED}
                 </span>
                 <span className="text-lime-300">{multiplier.toFixed(2)}x Power</span>
@@ -704,12 +716,12 @@ export function GameHUD() {
             </div>
             <LevelBar ammo={ammo} />
             {/* Leave room for the price tags above the compact boost buttons. */}
-            <div className="pointer-events-auto flex justify-center gap-1 overflow-x-auto pt-3">
+            <div className="pointer-events-auto flex w-full gap-1.5 pt-3">
               {BOOSTS.map((def) => (
                 <BoostButton key={def.multiplier} def={def} now={now} />
               ))}
             </div>
-          </>
+          </div>
         ) : (
           <>
             <div className="mt-1 flex w-full max-w-4xl flex-col items-center gap-2">

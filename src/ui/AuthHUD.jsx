@@ -1,14 +1,4 @@
 import { useBloxity } from '../bloxity/BloxityContext'
-import { useCloud } from '../game/cloudSave'
-
-/**
- * What the cloud mark beside your name says, and in what colour. Saving goes on
- * quietly in the background: only a problem, or the first load, is worth a word.
- */
-const CLOUD = {
-  loading: ['Loading…', 'text-sky-200'],
-  offline: ['Not saved yet', 'text-amber-300'],
-}
 
 /**
  * Who you are, top-right: a picture and a name in one small pill.
@@ -19,15 +9,13 @@ const CLOUD = {
  * player can knock in the middle of a run.
  *
  * Signed out the same pill becomes the button that opens the login, so the corner
- * keeps one shape in one place either way. Signed in, a small cloud mark beside the
- * name says whether your progress has reached the game server (see game/cloudSave.js).
+ * keeps one shape in one place either way.
  *
  * Uses the `getUser() || getGuest()` pattern (surfaced as `identity` on the context)
  * so there is a name and picture to show even before the player logs in.
  */
 export function AuthHUD() {
   const { identity, isLoggedIn, login, status, error } = useBloxity()
-  const cloud = CLOUD[useCloud((s) => s.status)]
 
   const name = identity?.displayName || identity?.username || 'Guest'
   const pfp = identity?.pfp
@@ -51,7 +39,6 @@ export function AuthHUD() {
           <div className={pill}>
             {avatar}
             <span className="text-sm font-semibold text-white">{name}</span>
-            {cloud && <span className={`text-xs font-semibold ${cloud[1]}`}>☁ {cloud[0]}</span>}
           </div>
         ) : (
           <button
