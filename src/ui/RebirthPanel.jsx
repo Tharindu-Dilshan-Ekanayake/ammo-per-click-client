@@ -1,6 +1,6 @@
 import { useEffect, useId, useState } from 'react'
 
-import { useTouchDevice } from '../game/device'
+import { useCompactLayout } from '../game/device'
 import { formatNumber } from '../game/format'
 import { useGame } from '../game/gameStore'
 import { CHIP, OUTLINE } from './textStyle'
@@ -61,11 +61,11 @@ function PanelButton({ colors, onClick, disabled, className = '', children }) {
 const EMOJI = { filter: 'drop-shadow(0 2px 0 rgba(0,0,0,0.55)) drop-shadow(0 0 6px rgba(0,0,0,0.35))' }
 
 /** One "current" or "after" tile: an icon and the value it stands for. */
-function Tile({ emoji, value, bright, touch }) {
+function Tile({ emoji, value, bright, compact }) {
   return (
     <div
       className={`flex w-full items-center justify-center gap-2 rounded-xl border-4 ${
-        touch ? 'py-1.5' : 'py-3'
+        compact ? 'py-1.5' : 'py-3'
       }`}
       style={{
         borderColor: INK,
@@ -75,10 +75,10 @@ function Tile({ emoji, value, bright, touch }) {
         boxShadow: 'inset 0 -5px 0 rgba(0,0,0,0.22)',
       }}
     >
-      <span className={touch ? 'text-3xl' : 'text-5xl'} style={EMOJI} aria-hidden>
+      <span className={compact ? 'text-3xl' : 'text-5xl'} style={EMOJI} aria-hidden>
         {emoji}
       </span>
-      <span className={`text-white ${touch ? 'text-2xl' : 'text-4xl'}`} style={OUTLINE}>
+      <span className={`text-white ${compact ? 'text-2xl' : 'text-4xl'}`} style={OUTLINE}>
         {value}
       </span>
     </div>
@@ -86,23 +86,23 @@ function Tile({ emoji, value, bright, touch }) {
 }
 
 /** A "current -> after" row: two tiles with an arrow between them. */
-function TradeRow({ emoji, from, to, touch }) {
+function TradeRow({ emoji, from, to, compact }) {
   return (
-    <div className={`flex items-center ${touch ? 'gap-1.5' : 'gap-3'}`}>
+    <div className={`flex items-center ${compact ? 'gap-1.5' : 'gap-3'}`}>
       <div className="flex flex-1 flex-col items-center gap-1">
-        <span className={`text-white/80 ${touch ? 'text-xs' : 'text-lg'}`} style={CHIP}>
+        <span className={`text-white/80 ${compact ? 'text-xs' : 'text-lg'}`} style={CHIP}>
           Current
         </span>
-        <Tile emoji={emoji} value={from} touch={touch} />
+        <Tile emoji={emoji} value={from} compact={compact} />
       </div>
-      <span className={`text-white ${touch ? 'text-xl' : 'text-3xl'}`} style={OUTLINE} aria-hidden>
+      <span className={`text-white ${compact ? 'text-xl' : 'text-3xl'}`} style={OUTLINE} aria-hidden>
         &#9654;
       </span>
       <div className="flex flex-1 flex-col items-center gap-1">
-        <span className={`text-white/80 ${touch ? 'text-xs' : 'text-lg'}`} style={CHIP}>
+        <span className={`text-white/80 ${compact ? 'text-xs' : 'text-lg'}`} style={CHIP}>
           After
         </span>
-        <Tile emoji={emoji} value={to} bright touch={touch} />
+        <Tile emoji={emoji} value={to} bright compact={compact} />
       </div>
     </div>
   )
@@ -119,7 +119,7 @@ function TradeRow({ emoji, from, to, touch }) {
 function RebirthDialog() {
   const ammo = useGame((s) => s.ammo)
   const rebirths = useGame((s) => s.rebirths)
-  const touch = useTouchDevice()
+  const compact = useCompactLayout()
   // Two presses, always. The first only asks; nothing is spent until the second.
   const [confirming, setConfirming] = useState(false)
 
@@ -144,7 +144,7 @@ function RebirthDialog() {
       onClick={close}
     >
       <div
-        className={`w-full rounded-2xl border-4 ${touch ? 'max-w-sm p-2' : 'max-w-xl p-4'}`}
+        className={`w-full rounded-2xl border-4 ${compact ? 'max-w-sm p-2' : 'max-w-xl p-4'}`}
         onClick={(e) => e.stopPropagation()}
         style={{
           borderColor: INK,
@@ -153,36 +153,36 @@ function RebirthDialog() {
         }}
       >
         {/* Header: the title, the level you are on, and the way out. */}
-        <div className={`flex items-center justify-between ${touch ? 'mb-2' : 'mb-4'}`}>
-          <span className={`text-white ${touch ? 'text-2xl' : 'text-4xl'}`} style={OUTLINE}>
+        <div className={`flex items-center justify-between ${compact ? 'mb-2' : 'mb-4'}`}>
+          <span className={`text-white ${compact ? 'text-2xl' : 'text-4xl'}`} style={OUTLINE}>
             Rebirth
           </span>
-          <div className={`flex items-center ${touch ? 'gap-2' : 'gap-3'}`}>
-            <span className={`text-white/90 ${touch ? 'text-base' : 'text-2xl'}`} style={OUTLINE}>
+          <div className={`flex items-center ${compact ? 'gap-2' : 'gap-3'}`}>
+            <span className={`text-white/90 ${compact ? 'text-base' : 'text-2xl'}`} style={OUTLINE}>
               Level {levelFor(ammo)}
             </span>
             <PanelButton
               colors={['#ff6a6a', '#d02b2b']}
               onClick={close}
-              className={touch ? 'text-lg' : 'text-2xl'}
+              className={compact ? 'text-lg' : 'text-2xl'}
             >
               &#10006;
             </PanelButton>
           </div>
         </div>
 
-        <div className={`flex flex-col ${touch ? 'gap-2' : 'gap-3'}`}>
+        <div className={`flex flex-col ${compact ? 'gap-2' : 'gap-3'}`}>
           <TradeRow
             emoji="🔫"
             from={`x${rebirthMultiplier(rebirths)}`}
             to={maxedOut ? 'MAX' : `x${rebirthMultiplier(rebirths + 1)}`}
-            touch={touch}
+            compact={compact}
           />
           <TradeRow
             emoji="⭐"
             from={rebirths}
             to={maxedOut ? 'MAX' : rebirths + 1}
-            touch={touch}
+            compact={compact}
           />
 
           {/*
@@ -192,7 +192,7 @@ function RebirthDialog() {
             player nothing about the thing they are actually waiting for.
           */}
           <div
-            className={`relative overflow-hidden rounded-xl border-4 ${touch ? 'h-9' : 'h-14'}`}
+            className={`relative overflow-hidden rounded-xl border-4 ${compact ? 'h-9' : 'h-14'}`}
             style={{ borderColor: INK, background: '#2a2140' }}
           >
             <div
@@ -203,7 +203,7 @@ function RebirthDialog() {
               }}
             />
             <div className="absolute inset-0 flex items-center justify-center">
-              <span className={`text-white ${touch ? 'text-sm' : 'text-2xl'}`} style={OUTLINE}>
+              <span className={`text-white ${compact ? 'text-sm' : 'text-2xl'}`} style={OUTLINE}>
                 {maxedOut
                   ? 'Every Rebirth done!'
                   : `${formatNumber(ammo)} / ${formatNumber(need)} Ammo`}
@@ -215,7 +215,7 @@ function RebirthDialog() {
             colors={confirming ? ['#ffd76a', '#f0a000'] : ['#7ce86a', '#2f9e44']}
             disabled={!ready}
             onClick={() => (confirming ? useGame.getState().rebirth() : setConfirming(true))}
-            className={touch ? 'text-xl' : 'text-3xl'}
+            className={compact ? 'text-xl' : 'text-3xl'}
           >
             {/*
               What is missing, in Ammo, because Ammo is the only thing the gate
@@ -235,7 +235,7 @@ function RebirthDialog() {
           </PanelButton>
 
           <span
-            className={`text-center text-white/75 ${touch ? 'text-[11px]' : 'text-base'}`}
+            className={`text-center text-white/75 ${compact ? 'text-[11px]' : 'text-base'}`}
             style={CHIP}
           >
             Only Ammo is spent. Your Wins, guns, pets and targets all stay.
@@ -260,7 +260,7 @@ function RebirthDialog() {
  */
 function RebirthBurst() {
   const rebirths = useGame((s) => s.rebirths)
-  const touch = useTouchDevice()
+  const compact = useCompactLayout()
   // The count at mount is history, not an event - nobody wants a burst on page load.
   const [seen, setSeen] = useState(rebirths)
   const [playing, setPlaying] = useState(0)
@@ -291,17 +291,17 @@ function RebirthBurst() {
         style={{ width: '40vmin', height: '40vmin', borderColor: '#ffffffcc' }}
       />
       <div className="rebirth-burst absolute left-1/2 top-1/2 flex flex-col items-center">
-        <span className={touch ? 'text-6xl' : 'text-8xl'} style={EMOJI} aria-hidden>
+        <span className={compact ? 'text-6xl' : 'text-8xl'} style={EMOJI} aria-hidden>
           ⭐
         </span>
         <span
-          className={`whitespace-nowrap text-white ${touch ? 'text-3xl' : 'text-6xl'}`}
+          className={`whitespace-nowrap text-white ${compact ? 'text-3xl' : 'text-6xl'}`}
           style={OUTLINE}
         >
           REBIRTH {playing}
         </span>
         <span
-          className={`whitespace-nowrap text-yellow-300 ${touch ? 'text-xl' : 'text-4xl'}`}
+          className={`whitespace-nowrap text-yellow-300 ${compact ? 'text-xl' : 'text-4xl'}`}
           style={OUTLINE}
         >
           Every click x{rebirthMultiplier(playing)}
@@ -346,7 +346,7 @@ export function RebirthIcon({ className = 'h-8 w-8' }) {
 
 /** The left-rail button that opens the panel. */
 export function RebirthButton() {
-  const touch = useTouchDevice()
+  const compact = useCompactLayout()
   const ammo = useGame((s) => s.ammo)
   const rebirths = useGame((s) => s.rebirths)
   const ready = canRebirth(ammo, rebirths)
@@ -356,7 +356,7 @@ export function RebirthButton() {
       type="button"
       onClick={() => useGame.getState().toggleRebirthPanel()}
       className={`pointer-events-auto relative mt-0 flex cursor-pointer flex-col items-center justify-center rounded-xl transition duration-100 hover:-translate-y-0.5 hover:scale-[1.03] hover:brightness-110 active:translate-y-0.5 active:scale-[0.98] ${
-        touch ? 'h-12 w-12 border-2' : 'h-[4.5rem] w-[4.5rem] border-4'
+        compact ? 'h-12 w-12 border-2' : 'h-[4.5rem] w-[4.5rem] border-4'
       }`}
       style={{
         borderColor: INK,
@@ -369,10 +369,10 @@ export function RebirthButton() {
       {/* The circular arrows, as the reference art has them. The star still means
           "how many", and it is what the badge and the panel's second row count in -
           the arrows are the verb, the star is the score. */}
-      <RebirthIcon className={touch ? 'h-9 w-9' : 'h-10 w-10'} />
+      <RebirthIcon className={compact ? 'h-9 w-9' : 'h-10 w-10'} />
       {/* Two sizes down from the Pets tile next to it: "Rebirth" is three letters
           longer than "Pets" and ran off both sides of the button at text-sm. */}
-      <span className={`leading-none text-white ${touch ? 'text-[9px]' : 'text-xs'}`} style={CHIP}>
+      <span className={`leading-none text-white ${compact ? 'text-[9px]' : 'text-xs'}`} style={CHIP}>
         Rebirth
       </span>
       {/* The star count once there is one, and a "!" the moment another is

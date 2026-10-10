@@ -45,3 +45,39 @@ export function useTouchDevice() {
 
   return touch
 }
+
+/**
+ * A screen too small for the full-size HUD, whatever is driving it.
+ *
+ * The game does not only run full screen on a phone: it runs in an iframe on the
+ * Bloxity game page, in a browser tab someone has shrunk, in a split window. In all
+ * of those a mouse is the pointer, so `useTouchDevice` says "desktop" and the HUD is
+ * drawn at the size it was designed for a monitor - and its pieces land on top of
+ * each other, the Ammo counter across the shop button and the level bar across the
+ * controls. So the HUD and its panels ask this instead: the compact layout is for a
+ * touch device or a small window, and only the thumbstick and buttons (TouchControls)
+ * are left to follow the pointer.
+ */
+const COMPACT_H = 640
+const COMPACT_W = 820
+
+const measureCompact = () =>
+  typeof window !== 'undefined' && (window.innerHeight < COMPACT_H || window.innerWidth < COMPACT_W)
+
+export function useCompactLayout() {
+  const touch = useTouchDevice()
+  const [small, setSmall] = useState(measureCompact)
+
+  useEffect(() => {
+    const onResize = () => setSmall(measureCompact())
+    onResize()
+    window.addEventListener('resize', onResize)
+    window.addEventListener('orientationchange', onResize)
+    return () => {
+      window.removeEventListener('resize', onResize)
+      window.removeEventListener('orientationchange', onResize)
+    }
+  }, [])
+
+  return touch || small
+}

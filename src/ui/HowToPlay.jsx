@@ -39,6 +39,7 @@ function Key({ children }) {
 
 /** One-time first-session guide, shown above the game after its loading screen. */
 export function HowToPlay() {
+  // Which controls to describe follows the pointer, not the window's size.
   const touch = useTouchDevice()
   const [open, setOpen] = useState(shouldShow)
 
